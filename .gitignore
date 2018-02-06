@@ -75,3 +75,6 @@ $RECYCLE.BIN/
 
 
 # End of https://www.gitignore.io/api/go,macos,windows,visualstudiocode
+
+config.toml
+tvd
