@@ -130,6 +130,8 @@ func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
 		return atr, fmt.Errorf("error: sig and/or token were empty: %+v", atr)
 	}
 
+	log.Printf("Access Token:\n    Sig:   %s\n    Token: %s\n", atr.Sig, atr.Token)
+
 	return atr, nil
 }
 
@@ -144,6 +146,11 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 
 	re := regexp.MustCompile(`BANDWIDTH=(\d+),.*?VIDEO="(.*?)"\n(.*?)\n`)
 	matches := re.FindAllStringSubmatch(string(respData), -1)
+	if len(matches) == 0 {
+		log.Printf("Response for m3u:\n%s\n", respData)
+		return nil, fmt.Errorf("error: no matches found")
+	}
+
 	bestBandwidth := 0
 	for _, match := range matches {
 		ql[match[2]] = match[3]
@@ -153,6 +160,11 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 			bestBandwidth = bandwidth
 			ql["best"] = match[3]
 		}
+	}
+
+	log.Printf("Qualities options found:\n")
+	for k, v := range ql {
+		log.Printf("    %s: %s\n", k, v)
 	}
 
 	return ql, nil
@@ -179,10 +191,12 @@ func getChunks(streamURL string) ([]Chunk, int, error) {
 		chunkURL = baseURL.ResolveReference(chunkURL)
 		chunks = append(chunks, Chunk{Name: match[2], Length: length, URL: chunkURL})
 	}
+	log.Printf("Found %d chunks", len(chunks))
 
 	re = regexp.MustCompile(`#EXT-X-TARGETDURATION:(\d+)\n`)
 	match := re.FindStringSubmatch(string(respData))
 	chunkDur, _ := strconv.Atoi(match[1])
+	log.Printf("Target chunk duration: %d", chunkDur)
 
 	return chunks, chunkDur, nil
 }
@@ -203,7 +217,12 @@ func pruneChunks(chunks []Chunk, startTime, endTime string, duration int) ([]Chu
 		endAt = endAt / duration
 	}
 
+	log.Printf("Start at chunk:          %d\n", startAt)
+	log.Printf("End at chunk:            %d\n", endAt)
+
 	res := chunks[startAt:endAt]
+
+	log.Printf("Number of pruned chunks: %d\n", len(res))
 
 	actualDuration := 0.0
 	for _, c := range res {
@@ -298,10 +317,17 @@ func buildOutFilePath(vodID int, startTime string, dur int, prefix string, folde
 		filename = filepath.Join(folder, filename)
 	}
 
+	log.Printf("Output file: %s\n", filename)
 	return filename, nil
 }
 
 func combineChunks(chunks []Chunk, outfile string) error {
+	ffmpeg := "ffmpeg"
+	if runtime.GOOS == "windows" {
+		ffmpeg += ".exe"
+	}
+	log.Printf("ffmpeg command: %s\n", ffmpeg)
+
 	concat := "concat:"
 	for _, c := range chunks {
 		concat += c.Path + "|"
@@ -309,11 +335,7 @@ func combineChunks(chunks []Chunk, outfile string) error {
 	concat = string(concat[0 : len(concat)-1])
 
 	args := []string{"-i", concat, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-fflags", "+genpts", outfile}
-
-	ffmpeg := "ffmpeg"
-	if runtime.GOOS == "windows" {
-		ffmpeg += ".exe"
-	}
+	log.Printf("ffmpeg args:\n%+v\n", args)
 	cmd := exec.Command(ffmpeg, args...)
 	var errbuf bytes.Buffer
 	cmd.Stderr = &errbuf
@@ -339,6 +361,7 @@ func timeInputToSeconds(t string) (int, error) {
 	}
 
 	s := hours*3600 + minutes*60 + seconds
+	log.Printf("Converted '%s' to %d seconds\n", t, s)
 	return s, nil
 }
 
@@ -346,7 +369,9 @@ func secondsToTimeMask(s int) string {
 	hours := s / 3600
 	minutes := s % 3600 / 60
 	seconds := s % 60
-	return fmt.Sprintf("%0dh%0dm%0ds", hours, minutes, seconds)
+	res := fmt.Sprintf("%02dh%02dm%02ds", hours, minutes, seconds)
+	log.Printf("Masked %d seconds as '%s'\n", s, res)
+	return res
 }
 
 func loadConfig(f string) Config {
@@ -371,6 +396,7 @@ func loadConfig(f string) Config {
 }
 
 func readURL(url string) ([]byte, error) {
+	log.Printf("Requesting URL: %s\n", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
