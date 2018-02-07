@@ -250,6 +250,7 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 	// Wait for results to come in
 	for r := 0; r < len(chunks); r++ {
 		res := <-results
+		// below error-catching is untested... cross your fingers
 		if len(res) != 0 {
 			close(results)
 			return nil, "", fmt.Errorf("error: a worker returned an error: %s", res)
