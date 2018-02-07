@@ -16,8 +16,8 @@ type Config struct {
 
 // AccessTokenResponse represents the (happy) JSON response to a token request call
 type AccessTokenResponse struct {
-	Sig   string `json:"token"`
-	Token string `json:"sig"`
+	Sig   string `json:"sig"`
+	Token string `json:"token"`
 }
 
 // Chunk represents a video chunk from the m3u
