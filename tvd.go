@@ -13,6 +13,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -66,7 +67,13 @@ func DownloadVOD(cfg Config) error {
 		}
 		return fmt.Errorf("error: quality %s not available in list %+v", cfg.Quality, options)
 	}
-	chunks, err := getChunks(streamURL)
+	chunks, chunkDur, err := getChunks(streamURL)
+	if err != nil {
+		return err
+	}
+
+	// Prune chunk list to those needed for requested stream time
+	chunks, clipDur, err := pruneChunks(chunks, cfg.StartTime, cfg.EndTime, chunkDur)
 	if err != nil {
 		return err
 	}
@@ -118,12 +125,12 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 	return ql, nil
 }
 
-func getChunks(streamURL string) ([]Chunk, error) {
+func getChunks(streamURL string) ([]Chunk, int, error) {
 	var chunks []Chunk
 
 	respData, err := readURL(streamURL)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	re := regexp.MustCompile(`#EXTINF:(\d+\.\d+),\n(.*?)\n`)
@@ -140,7 +147,54 @@ func getChunks(streamURL string) ([]Chunk, error) {
 		chunks = append(chunks, Chunk{Name: match[2], Length: length, URL: chunkURL})
 	}
 
-	return chunks, nil
+	re = regexp.MustCompile(`#EXT-X-TARGETDURATION:(\d+)\n`)
+	match := re.FindStringSubmatch(string(respData))
+	chunkDur, _ := strconv.Atoi(match[1])
+
+	return chunks, chunkDur, nil
+}
+
+func pruneChunks(chunks []Chunk, startTime, endTime string, duration int) ([]Chunk, int, error) {
+	startAt, err := timeInputToSeconds(startTime)
+	if err != nil {
+		return nil, 0.0, err
+	}
+	startAt = startAt / duration
+	// assume "end", work to determine actual end chunk if different
+	endAt := len(chunks)
+	if endTime != "end" {
+		endAt, err := timeInputToSeconds(endTime)
+		if err != nil {
+			return nil, 0.0, err
+		}
+		endAt = endAt / duration
+	}
+
+	res := chunks[startAt:endAt]
+
+	actualDuration := 0.0
+	for _, c := range res {
+		actualDuration += c.Length
+	}
+
+	return res, int(actualDuration), nil
+}
+
+func timeInputToSeconds(t string) (int, error) {
+	entries := strings.Split(t, " ")
+	if len(entries) != 3 {
+		return 0, fmt.Errorf("error: time input must be in format \"H M S\", got '%s'", t)
+	}
+
+	hours, err := strconv.Atoi(entries[0])
+	minutes, err := strconv.Atoi(entries[1])
+	seconds, err := strconv.Atoi(entries[2])
+	if err != nil {
+		return 0, fmt.Errorf("error: all time inputs must be integers, got '%s'", t)
+	}
+
+	s := hours*3600 + minutes*60 + seconds
+	return s, nil
 }
 
 func loadConfig(f string) Config {
