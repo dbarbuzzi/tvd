@@ -9,7 +9,7 @@ tvd (**T**witch **V**OD **D**ownloader) is a command-line tool to download VODs 
 
 ## Download
 
-Visit the [releases](/dbarbuzzi/tvd/releases) page to download the latest binary for your platform.
+Visit the [releases](https://github.com/dbarbuzzi/tvd/releases/latest) page to download the latest binary for your platform.
 
 ## Usage
 
