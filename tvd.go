@@ -81,7 +81,7 @@ func DownloadVOD(cfg Config) error {
 	}
 
 	// Download chunks
-	chunks, err := downloadChunks(chunks, cfg.VodID, cfg.Workers)
+	chunks, err = downloadChunks(chunks, cfg.VodID, cfg.Workers)
 	if err != nil {
 		return err
 	}
