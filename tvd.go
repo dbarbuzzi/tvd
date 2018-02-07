@@ -4,6 +4,7 @@ package main
 // https://github.com/ArneVogel/concat
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,8 +13,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -88,6 +91,12 @@ func DownloadVOD(cfg Config) error {
 
 	// Build output filename & path
 	outFile, err := buildOutFilePath(cfg.VodID, cfg.StartTime, clipDur, cfg.FilePrefix, cfg.OutputFolder)
+	if err != nil {
+		return err
+	}
+
+	// Combine chunks
+	err = combineChunks(chunks, outFile)
 	if err != nil {
 		return err
 	}
@@ -280,6 +289,30 @@ func buildOutFilePath(vodID int, startTime string, dur int, prefix string, folde
 	}
 
 	return filename, nil
+}
+
+func combineChunks(chunks []Chunk, outfile string) error {
+	concat := "concat:"
+	for _, c := range chunks {
+		concat += c.Path + "|"
+	}
+	concat = string(concat[0 : len(concat)-1])
+
+	args := []string{"-i", concat, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-fflags", "+genpts", outfile}
+
+	ffmpeg := "ffmpeg"
+	if runtime.GOOS == "windows" {
+		ffmpeg += ".exe"
+	}
+	cmd := exec.Command(ffmpeg, args...)
+	var errbuf bytes.Buffer
+	cmd.Stderr = &errbuf
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf(errbuf.String())
+	}
+
+	return nil
 }
 
 func timeInputToSeconds(t string) (int, error) {
