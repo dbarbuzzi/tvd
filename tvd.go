@@ -86,6 +86,12 @@ func DownloadVOD(cfg Config) error {
 		return err
 	}
 
+	// Build output filename & path
+	outFile, err := buildOutFilePath(cfg.VodID, cfg.StartTime, clipDur, cfg.FilePrefix, cfg.OutputFolder)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -254,6 +260,28 @@ func downloadChunk(c Chunk) error {
 	return nil
 }
 
+func buildOutFilePath(vodID int, startTime string, dur int, prefix string, folder string) (string, error) {
+	startAt, err := timeInputToSeconds(startTime)
+	if err != nil {
+		return "", err
+	}
+	startTime = secondsToTimeMask(startAt)
+	endAt := startAt + dur
+	endTime := secondsToTimeMask(endAt)
+
+	filename := fmt.Sprintf("%d-%s-%s", vodID, startTime, endTime)
+
+	if len(prefix) > 0 {
+		filename = prefix + filename
+	}
+
+	if len(folder) > 0 {
+		filename = filepath.Join(folder, filename)
+	}
+
+	return filename, nil
+}
+
 func timeInputToSeconds(t string) (int, error) {
 	entries := strings.Split(t, " ")
 	if len(entries) != 3 {
@@ -269,6 +297,13 @@ func timeInputToSeconds(t string) (int, error) {
 
 	s := hours*3600 + minutes*60 + seconds
 	return s, nil
+}
+
+func secondsToTimeMask(s int) string {
+	hours := s / 3600
+	minutes := s % 3600 / 60
+	seconds := s % 60
+	return fmt.Sprintf("%0dh%0dm%0ds", hours, minutes, seconds)
 }
 
 func loadConfig(f string) Config {
