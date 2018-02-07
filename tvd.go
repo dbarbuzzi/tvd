@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"gopkg.in/cheggaaa/pb.v1"
 )
 
 func main() {
@@ -247,6 +248,8 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 	}
 	close(jobs)
 
+	bar := pb.StartNew(len(chunks))
+
 	// Wait for results to come in
 	for r := 0; r < len(chunks); r++ {
 		res := <-results
@@ -255,7 +258,9 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 			close(results)
 			return nil, "", fmt.Errorf("error: a worker returned an error: %s", res)
 		}
+		bar.Increment()
 	}
+	bar.Finish()
 
 	return chunks, tempDir, nil
 }
