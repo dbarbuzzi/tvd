@@ -279,7 +279,7 @@ func buildOutFilePath(vodID int, startTime string, dur int, prefix string, folde
 	endAt := startAt + dur
 	endTime := secondsToTimeMask(endAt)
 
-	filename := fmt.Sprintf("%d-%s-%s", vodID, startTime, endTime)
+	filename := fmt.Sprintf("%d-%s-%s.mp4", vodID, startTime, endTime)
 
 	if len(prefix) > 0 {
 		filename = prefix + filename
