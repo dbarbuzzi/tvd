@@ -50,21 +50,18 @@ func main() {
 
 // DownloadVOD downloads a VOD based on the various info passed in the config
 func DownloadVOD(cfg Config) error {
-	// Get an access token
 	fmt.Println("Fetching access token")
 	atr, err := getAccessToken(cfg.VodID, cfg.ClientID)
 	if err != nil {
 		return err
 	}
 
-	// Use access token to get m3u (list of vod stream options)
 	fmt.Println("Fetching VOD stream options")
 	ql, err := getStreamOptions(cfg.VodID, atr)
 	if err != nil {
 		return err
 	}
 
-	// Get chunk list for desired stream option
 	fmt.Println("Picking selected quality")
 	streamURL, ok := ql[cfg.Quality]
 	if !ok {
@@ -82,14 +79,12 @@ func DownloadVOD(cfg Config) error {
 		return err
 	}
 
-	// Prune chunk list to those needed for requested stream time
 	fmt.Println("Pruning chunk list")
 	chunks, clipDur, err := pruneChunks(chunks, cfg.StartTime, cfg.EndTime, chunkDur)
 	if err != nil {
 		return err
 	}
 
-	// Download chunks
 	fmt.Println("Downloading chunks")
 	chunks, tempDir, err := downloadChunks(chunks, cfg.VodID, cfg.Workers)
 	if err != nil {
@@ -97,14 +92,12 @@ func DownloadVOD(cfg Config) error {
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Build output filename & path
 	fmt.Println("Building output filepath")
 	outFile, err := buildOutFilePath(cfg.VodID, cfg.StartTime, clipDur, cfg.FilePrefix, cfg.OutputFolder)
 	if err != nil {
 		return err
 	}
 
-	// Combine chunks
 	fmt.Println("Combining chunks")
 	err = combineChunks(chunks, outFile)
 	if err != nil {
