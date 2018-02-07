@@ -127,7 +127,7 @@ func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
 func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, error) {
 	var ql = make(map[string]string)
 
-	url := fmt.Sprintf("https://usher.twitch.tv/vod/%d?authsig=%s&nauth=%s&allow_source=true", vodID, atr.Sig, atr.Token)
+	url := fmt.Sprintf("http://usher.twitch.tv/vod/%d?nauthsig=%s&nauth=%s&allow_source=true", vodID, atr.Sig, atr.Token)
 	respData, err := readURL(url)
 	if err != nil {
 		return nil, err
