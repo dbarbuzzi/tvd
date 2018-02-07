@@ -41,7 +41,7 @@ func main() {
 // DownloadVOD downloads a VOD based on the various info passed in the config
 func DownloadVOD(cfg Config) error {
 	// Get an access token
-	atr, err := getAccessToken(cfg)
+	atr, err := getAccessToken(cfg.VodID, cfg.ClientID)
 	if err != nil {
 		return err
 	}
@@ -49,9 +49,9 @@ func DownloadVOD(cfg Config) error {
 	return nil
 }
 
-func getAccessToken(cfg Config) (AccessTokenResponse, error) {
+func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
 	var atr AccessTokenResponse
-	url := fmt.Sprintf("https://api.twitch.tv/api/vods/%d/access_token?client_id=%s", cfg.VodID, cfg.ClientID)
+	url := fmt.Sprintf("https://api.twitch.tv/api/vods/%d/access_token?client_id=%s", vodID, clientID)
 	respData, err := readURL(url)
 	if err != nil {
 		return atr, err
