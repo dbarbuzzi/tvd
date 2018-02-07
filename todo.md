@@ -11,3 +11,4 @@
   - [ ] Worker receiving a task
   - [ ] Chunk download complete or worker completing a task
   - Any other relevant worker-/download-related areas
+- [ ] Add "Length" flag/config option as alternative option to "EndTime"
