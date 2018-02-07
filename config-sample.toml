@@ -1,0 +1,7 @@
+ClientID="<twitch api client id>"
+Quality="best"
+StartTime="0 0 0"
+EndTime="0 30 0"
+VodID=222129587
+FilePrefix="20180125-"
+Workers=4
