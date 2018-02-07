@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -50,6 +51,22 @@ func DownloadVOD(cfg Config) error {
 
 	// Use access token to get m3u (list of vod stream options)
 	ql, err := getStreamOptions(cfg.VodID, atr)
+	if err != nil {
+		return err
+	}
+
+	// Get chunk list for desired stream option
+	streamURL, ok := ql[cfg.Quality]
+	if !ok {
+		i := 0
+		options := make([]string, len(ql))
+		for k := range ql {
+			options[i] = k
+			i++
+		}
+		return fmt.Errorf("error: quality %s not available in list %+v", cfg.Quality, options)
+	}
+	chunks, err := getChunks(streamURL)
 	if err != nil {
 		return err
 	}
@@ -99,6 +116,31 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 	}
 
 	return ql, nil
+}
+
+func getChunks(streamURL string) ([]Chunk, error) {
+	var chunks []Chunk
+
+	respData, err := readURL(streamURL)
+	if err != nil {
+		return nil, err
+	}
+
+	re := regexp.MustCompile(`#EXTINF:(\d+\.\d+),\n(.*?)\n`)
+	matches := re.FindAllStringSubmatch(string(respData), -1)
+
+	// "safe" to ignore because we already fetched it
+	baseURL, _ := url.Parse(streamURL)
+	for _, match := range matches {
+		// "safe" to ignore error due to regex capture group
+		length, _ := strconv.ParseFloat(match[1], 64)
+		// "safe" to ignore error ... due to capture group?
+		chunkURL, _ := url.Parse(match[2])
+		chunkURL = baseURL.ResolveReference(chunkURL)
+		chunks = append(chunks, Chunk{Name: match[2], Length: length, URL: chunkURL})
+	}
+
+	return chunks, nil
 }
 
 func loadConfig(f string) Config {
