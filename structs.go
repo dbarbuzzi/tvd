@@ -11,3 +11,9 @@ type Config struct {
 	OutputFolder string
 	Workers      int
 }
+
+// AccessTokenResponse represents the (happy) JSON response to a token request call
+type AccessTokenResponse struct {
+	Sig   string `json:"token"`
+	Token string `json:"sig"`
+}

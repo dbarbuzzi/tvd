@@ -1,17 +1,19 @@
 package main
 
+// Based on concat by ArneVogel
+// https://github.com/ArneVogel/concat
+
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/BurntSushi/toml"
 )
-
-// Based on concat by ArneVogel
-// https://github.com/ArneVogel/concat
 
 func main() {
 	// Initialize logging to file
@@ -30,6 +32,40 @@ func main() {
 	// flags (todo)
 
 	// go get it!
+	err = DownloadVOD(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// DownloadVOD downloads a VOD based on the various info passed in the config
+func DownloadVOD(cfg Config) error {
+	// Get an access token
+	atr, err := getAccessToken(cfg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getAccessToken(cfg Config) (AccessTokenResponse, error) {
+	var atr AccessTokenResponse
+	url := fmt.Sprintf("http://api.twitch.tv/api/vods/%d/access_token?&client_id=%s", cfg.VodID, cfg.ClientID)
+	respData, err := readURL(url)
+	if err != nil {
+		return atr, err
+	}
+
+	err = json.Unmarshal(respData, &atr)
+	if err != nil {
+		return atr, err
+	}
+	if len(atr.Sig) == 0 || len(atr.Token) == 0 {
+		return atr, fmt.Errorf("error: sig and/or token were empty: %+v", atr)
+	}
+
+	return atr, nil
 }
 
 func loadConfig(f string) Config {
@@ -51,4 +87,19 @@ func loadConfig(f string) Config {
 	}
 
 	return config
+}
+
+func readURL(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
 }
