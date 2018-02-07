@@ -84,10 +84,11 @@ func DownloadVOD(cfg Config) error {
 	}
 
 	// Download chunks
-	chunks, err = downloadChunks(chunks, cfg.VodID, cfg.Workers)
+	chunks, tempDir, err := downloadChunks(chunks, cfg.VodID, cfg.Workers)
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tempDir)
 
 	// Build output filename & path
 	outFile, err := buildOutFilePath(cfg.VodID, cfg.StartTime, clipDur, cfg.FilePrefix, cfg.OutputFolder)
@@ -203,10 +204,10 @@ func pruneChunks(chunks []Chunk, startTime, endTime string, duration int) ([]Chu
 	return res, int(actualDuration), nil
 }
 
-func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, error) {
+func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error) {
 	tempDir, err := ioutil.TempDir("", fmt.Sprintf("tvd_%d", vodID))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	jobs := make(chan Chunk, len(chunks))
@@ -230,11 +231,11 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, error) {
 		res := <-results
 		if len(res) != 0 {
 			close(results)
-			return nil, fmt.Errorf("error: a worker returned an error: %s", res)
+			return nil, "", fmt.Errorf("error: a worker returned an error: %s", res)
 		}
 	}
 
-	return chunks, nil
+	return chunks, tempDir, nil
 }
 
 func downloadWorker(id int, chunks <-chan Chunk, results chan<- string) {
