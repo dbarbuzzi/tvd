@@ -6,11 +6,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -74,6 +76,12 @@ func DownloadVOD(cfg Config) error {
 
 	// Prune chunk list to those needed for requested stream time
 	chunks, clipDur, err := pruneChunks(chunks, cfg.StartTime, cfg.EndTime, chunkDur)
+	if err != nil {
+		return err
+	}
+
+	// Download chunks
+	chunks, err := downloadChunks(chunks, cfg.VodID, cfg.Workers)
 	if err != nil {
 		return err
 	}
@@ -178,6 +186,72 @@ func pruneChunks(chunks []Chunk, startTime, endTime string, duration int) ([]Chu
 	}
 
 	return res, int(actualDuration), nil
+}
+
+func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, error) {
+	tempDir, err := ioutil.TempDir("", fmt.Sprintf("tvd_%d", vodID))
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := make(chan Chunk, len(chunks))
+	results := make(chan string, len(chunks))
+
+	// Spin up workers
+	for w := 1; w < workers; w++ {
+		go downloadWorker(w, jobs, results)
+	}
+
+	// Fill job queue with chunks
+	for i, c := range chunks {
+		c.Path = filepath.Join(tempDir, c.Name)
+		chunks[i] = c
+		jobs <- c
+	}
+	close(jobs)
+
+	// Wait for results to come in
+	for r := 0; r < len(chunks); r++ {
+		res := <-results
+		if len(res) != 0 {
+			close(results)
+			return nil, fmt.Errorf("error: a worker returned an error: %s", res)
+		}
+	}
+
+	return chunks, nil
+}
+
+func downloadWorker(id int, chunks <-chan Chunk, results chan<- string) {
+	for chunk := range chunks {
+		err := downloadChunk(chunk)
+		res := ""
+		if err != nil {
+			res = err.Error()
+		}
+		results <- res
+	}
+}
+
+func downloadChunk(c Chunk) error {
+	resp, err := http.Get(c.URL.String())
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	chunkFile, err := os.Create(c.Path)
+	if err != nil {
+		return err
+	}
+	defer chunkFile.Close()
+
+	_, err = io.Copy(chunkFile, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func timeInputToSeconds(t string) (int, error) {
