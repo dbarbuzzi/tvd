@@ -1,5 +1,7 @@
 package main
 
+import "net/url"
+
 // Config represents a config object containing everything needed to download a VOD
 type Config struct {
 	ClientID     string
@@ -10,4 +12,18 @@ type Config struct {
 	FilePrefix   string
 	OutputFolder string
 	Workers      int
+}
+
+// AccessTokenResponse represents the (happy) JSON response to a token request call
+type AccessTokenResponse struct {
+	Sig   string `json:"sig"`
+	Token string `json:"token"`
+}
+
+// Chunk represents a video chunk from the m3u
+type Chunk struct {
+	Name   string
+	Length float64
+	URL    *url.URL
+	Path   string
 }
