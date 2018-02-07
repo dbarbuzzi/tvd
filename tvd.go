@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -46,6 +48,12 @@ func DownloadVOD(cfg Config) error {
 		return err
 	}
 
+	// Use access token to get m3u (list of vod stream options)
+	ql, err := getStreamOptions(cfg.VodID, atr)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -66,6 +74,31 @@ func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
 	}
 
 	return atr, nil
+}
+
+func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, error) {
+	var ql map[string]string
+
+	url := fmt.Sprintf("https://usher.twitch.tv/vod/%d?authsig=%s&nauth=%s&allow_source=true", vodID, atr.Sig, atr.Token)
+	respData, err := readURL(url)
+	if err != nil {
+		return nil, err
+	}
+
+	re := regexp.MustCompile(`BANDWIDTH=(\d+),.*?VIDEO="(.*?)"\n(.*?)\n`)
+	matches := re.FindAllStringSubmatch(string(respData), -1)
+	bestBandwidth := 0
+	for _, match := range matches {
+		ql[match[2]] = match[3]
+		// "safe" to ignore error as regex only matches digits for this capture grouop
+		bandwidth, _ := strconv.Atoi(match[1])
+		if bandwidth > bestBandwidth {
+			bestBandwidth = bandwidth
+			ql["best"] = match[3]
+		}
+	}
+
+	return ql, nil
 }
 
 func loadConfig(f string) Config {
