@@ -51,7 +51,7 @@ func DownloadVOD(cfg Config) error {
 
 func getAccessToken(cfg Config) (AccessTokenResponse, error) {
 	var atr AccessTokenResponse
-	url := fmt.Sprintf("http://api.twitch.tv/api/vods/%d/access_token?&client_id=%s", cfg.VodID, cfg.ClientID)
+	url := fmt.Sprintf("https://api.twitch.tv/api/vods/%d/access_token?client_id=%s", cfg.VodID, cfg.ClientID)
 	respData, err := readURL(url)
 	if err != nil {
 		return atr, err
