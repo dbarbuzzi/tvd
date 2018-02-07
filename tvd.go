@@ -187,7 +187,7 @@ func pruneChunks(chunks []Chunk, startTime, endTime string, duration int) ([]Chu
 	// assume "end", work to determine actual end chunk if different
 	endAt := len(chunks)
 	if endTime != "end" {
-		endAt, err := timeInputToSeconds(endTime)
+		endAt, err = timeInputToSeconds(endTime)
 		if err != nil {
 			return nil, 0.0, err
 		}
