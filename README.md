@@ -5,7 +5,8 @@ tvd (**T**witch **V**OD **D**ownloader) is a command-line tool to download VODs 
 ## Prerequisites
 
 * You must have [ffmpeg](https://www.ffmpeg.org/) available on your path regardless of platform.
-* You must register a new app on the Twitch Dev site to get your own client ID
+* If using the source, you must register a new app on the Twitch Dev site to get your own client ID
+  * Provided releases have an embedded client ID
 
 ## Download
 
@@ -13,7 +14,11 @@ Visit the [releases](https://github.com/dbarbuzzi/tvd/releases/latest) page to d
 
 ## Usage
 
-Currently, no command-line args are supported. This is a top-priority future enhancement. In the meantime, everything is controlled through the config file. Create a file named `tvd-config.toml` and copy the contents from `config-sample.toml` as a baseline. Marked values are optional and can be omitted to use defaults.
+Configuration is supported via config file and/org command-line flags. Values in the config file replace any built-in defaults, and values passed via command-line replace built-in/config file values.
+
+### Config file
+
+Create a file named `tvd-config.toml` and copy the contents from `config-sample.toml` as a baseline. Marked values are optional and can be omitted to use defaults.
 
 The accepted values are:
 
@@ -25,3 +30,16 @@ The accepted values are:
 * `FilePrefix` (optional) – Prefix for the output filename, include your own separator (default: none)
 * `OutputFolder` (optional) – Full path to the folder to save the file (e.g. `/Users/username/downloads` or `C:\Users\username\`) (default: current working directory)
 * `Workers` (optional) – Number of concurrent downloads (default: 4)
+
+### Command-line flags
+
+All options supported above are also supported through the command-line under the following flags:
+
+* `client` => `ClientID`
+* `quality` => `Quality`
+* `start` => `StartTime`
+* `end` => `EndTime`
+* `prefix` => `FilePrefix`
+* `folder` => `OutputFolder`
+* `workers` => `Workers`
+* `VodID` is passed as an argument, not a flag (e.g. `tvd 123567489`)

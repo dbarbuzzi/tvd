@@ -5,7 +5,8 @@
 - [x] Progress bar for chunk download
 - [ ] Rename config file to be more unique / prevent conflicts
 - [x] Remove ClientID from config and temporarilty add it to code during build process
-- [ ] Support command-line args/flags
+- [x] Support command-line args/flags
+- [x] Validate "config" values after aggregated & before moving on
 - [ ] Further logging to file
   - [ ] Spinning up workers
   - [ ] Worker receiving a task
