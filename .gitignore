@@ -78,5 +78,7 @@ $RECYCLE.BIN/
 
 config.toml
 tvd
+dist
 logs
 vendor
+.clientid
