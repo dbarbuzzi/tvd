@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -48,6 +49,18 @@ func main() {
 	config := loadConfig("config.toml")
 
 	// flags (todo)
+	flagConfig, err := parseFlags()
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(err)
+	}
+	config.Update(flagConfig)
+	log.Printf("Final config: %+v\n", config)
+	err = config.Validate()
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(err)
+	}
 
 	// go get it!
 	err = DownloadVOD(config)
@@ -387,6 +400,7 @@ func loadConfig(f string) Config {
 		Quality:  "best",
 		Workers:  4,
 	}
+	log.Printf("Default config: %+v\n", config)
 
 	configData, err := ioutil.ReadFile(f)
 	if err != nil {
@@ -400,7 +414,54 @@ func loadConfig(f string) Config {
 		return config
 	}
 
+	log.Printf("Config after parsing config file: %+v\n", config)
 	return config
+}
+
+func parseFlags() (Config, error) {
+	var config Config
+
+	client := flag.String("client", "", "client ID of registered Twitch App")
+	quality := flag.String("quality", "", "desired quality ('720p30', 'best', etc.)")
+	startTime := flag.String("start", "", "start time (e.g. '0 15 0' to start at 15 minute mark)")
+	endTime := flag.String("end", "", "end time (e.g. '0 30 0' to end at 30 minute mark)")
+	prefix := flag.String("prefix", "", "optional prefix for the output file's name")
+	folder := flag.String("folder", "", "target folder for output file (default: current dir)")
+	workers := flag.Int("workers", 0, "number of concurrent downloads(default: 4) ")
+	flag.Parse()
+
+	if *client != "" {
+		config.ClientID = *client
+	}
+	if *quality != "" {
+		config.Quality = *quality
+	}
+	if *startTime != "" {
+		config.StartTime = *startTime
+	}
+	if *endTime != "" {
+		config.EndTime = *endTime
+	}
+	if *prefix != "" {
+		config.FilePrefix = *prefix
+	}
+	if *folder != "" {
+		config.OutputFolder = *folder
+	}
+	if *workers != 0 {
+		config.Workers = *workers
+	}
+
+	if len(flag.Args()) > 0 {
+		vID, err := strconv.Atoi(flag.Arg(0))
+		if err != nil {
+			return config, err
+		}
+		config.VodID = vID
+	}
+
+	log.Printf("Flag config: %+v\n", config)
+	return config, nil
 }
 
 func readURL(url string) ([]byte, error) {
