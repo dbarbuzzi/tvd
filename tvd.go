@@ -25,8 +25,13 @@ import (
 	"gopkg.in/cheggaaa/pb.v1"
 )
 
-// ClientID is provided by the Twitch API when registering an application
-const ClientID = ":CLIENT_ID:"
+// below block's vars are populated via ldflags during build
+var (
+	// ClientID is provided by the Twitch API when registering an application
+	ClientID string
+	// Version is the release version
+	Version string
+)
 
 func main() {
 	// Initialize logging to file
