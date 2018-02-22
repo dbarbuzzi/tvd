@@ -25,6 +25,9 @@ import (
 	"gopkg.in/cheggaaa/pb.v1"
 )
 
+// ClientID is provided by the Twitch API when registering an application
+const ClientID = ":CLIENT_ID:"
+
 func main() {
 	// Initialize logging to file
 	now := time.Now()
@@ -375,8 +378,9 @@ func secondsToTimeMask(s int) string {
 
 func loadConfig(f string) Config {
 	config := Config{
-		Quality: "best",
-		Workers: 4,
+		ClientID: ClientID,
+		Quality:  "best",
+		Workers:  4,
 	}
 
 	configData, err := ioutil.ReadFile(f)
