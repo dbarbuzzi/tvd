@@ -1,7 +1,6 @@
 package main
 
-// Based on concat by ArneVogel
-// https://github.com/ArneVogel/concat
+// Based on https://github.com/ArneVogel/concat
 
 import (
 	"bytes"
@@ -374,10 +373,16 @@ func timeInputToSeconds(t string) (int, error) {
 	}
 
 	hours, err := strconv.Atoi(entries[0])
+	if err != nil {
+		return 0, fmt.Errorf("error: hours must be integer, got '%s' ('%s')", entries[0], t)
+	}
 	minutes, err := strconv.Atoi(entries[1])
+	if err != nil {
+		return 0, fmt.Errorf("error: minutes must be integer, got '%s' ('%s')", entries[1], t)
+	}
 	seconds, err := strconv.Atoi(entries[2])
 	if err != nil {
-		return 0, fmt.Errorf("error: all time inputs must be integers, got '%s'", t)
+		return 0, fmt.Errorf("error: seconds must be integer, got '%s' ('%s')", entries[2], t)
 	}
 
 	s := hours*3600 + minutes*60 + seconds
