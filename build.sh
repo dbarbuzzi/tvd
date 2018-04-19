@@ -13,9 +13,9 @@ TVD_VERSION=`git describe --tags`
 rm -rf dist/*
 
 # build the binaries
-GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.ClientID=${TWITCH_CLIENT_ID} -X main.Version=${TVD_VERSION}" -o dist/darwin-amd64/tvd
-GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.ClientID=${TWITCH_CLIENT_ID} -X main.Version=${TVD_VERSION}" -o dist/linux-amd64/tvd
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.ClientID=${TWITCH_CLIENT_ID} -X main.Version=${TVD_VERSION}" -o dist/windows-amd64/tvd.exe
+GOOS=darwin GOARCH=amd64 vgo build -ldflags="-s -w -X main.ClientID=${TWITCH_CLIENT_ID} -X main.Version=${TVD_VERSION}" -o dist/darwin-amd64/tvd
+GOOS=linux GOARCH=amd64 vgo build -ldflags="-s -w -X main.ClientID=${TWITCH_CLIENT_ID} -X main.Version=${TVD_VERSION}" -o dist/linux-amd64/tvd
+GOOS=windows GOARCH=amd64 vgo build -ldflags="-s -w -X main.ClientID=${TWITCH_CLIENT_ID} -X main.Version=${TVD_VERSION}" -o dist/windows-amd64/tvd.exe
 
 # package the binaries
 cd dist
