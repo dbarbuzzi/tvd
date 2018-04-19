@@ -39,9 +39,14 @@ func main() {
 	logfilepath := fmt.Sprintf("logs/%s.log", now.Format("20060102-030405"))
 	logfile, err := os.OpenFile(logfilepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Fatal("Failed to create log file")
+		log.Fatalln("Failed to create log file")
 	}
-	defer logfile.Close()
+	defer func() {
+		err = logfile.Close()
+		if err != nil {
+			log.Fatalln("Failed to close log file")
+		}
+	}()
 	log.SetOutput(logfile)
 
 	// config file
@@ -51,21 +56,21 @@ func main() {
 	flagConfig, err := parseFlags()
 	if err != nil {
 		fmt.Println(err)
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	config.Update(flagConfig)
 	log.Printf("Final config: %+v\n", config)
 	err = config.Validate()
 	if err != nil {
 		fmt.Println(err)
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	// go get it!
 	err = DownloadVOD(config)
 	if err != nil {
 		fmt.Println(err)
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 }
 
@@ -111,7 +116,13 @@ func DownloadVOD(cfg Config) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err = os.RemoveAll(tempDir)
+		if err != nil {
+			fmt.Printf("Failed to remove dir <%s>\n", tempDir)
+			log.Fatalln(err)
+		}
+	}()
 
 	fmt.Println("Building output filepath")
 	outFile, err := buildOutFilePath(cfg.VodID, cfg.StartTime, clipDur, cfg.FilePrefix, cfg.OutputFolder)
@@ -301,13 +312,23 @@ func downloadChunk(c Chunk) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
 
 	chunkFile, err := os.Create(c.Path)
 	if err != nil {
 		return err
 	}
-	defer chunkFile.Close()
+	defer func() {
+		err = chunkFile.Close()
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}()
 
 	_, err = io.Copy(chunkFile, resp.Body)
 	if err != nil {
@@ -475,7 +496,12 @@ func readURL(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
