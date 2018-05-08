@@ -326,6 +326,7 @@ func downloadChunk(c Chunk) error {
 	defer func() {
 		err = chunkFile.Close()
 		if err != nil {
+			fmt.Printf("error closing chunk file %s: %s\n", c.Name, err.Error())
 			log.Fatalln(err)
 		}
 	}()
@@ -430,13 +431,13 @@ func loadConfig(f string) Config {
 
 	configData, err := ioutil.ReadFile(f)
 	if err != nil {
-		fmt.Println("W: Failed to load config.toml")
+		fmt.Println("W: Failed to load config.toml: ", err)
 		return config
 	}
 
 	err = toml.Unmarshal(configData, &config)
 	if err != nil {
-		fmt.Println("W: Failed to parse config.toml")
+		fmt.Println("W: Failed to parse config.toml: ", err)
 		return config
 	}
 
@@ -499,6 +500,7 @@ func readURL(url string) ([]byte, error) {
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
+			fmt.Printf("error closing URL body for <%s>: %s", url, err.Error())
 			log.Println(err)
 		}
 	}()
