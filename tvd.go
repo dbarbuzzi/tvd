@@ -452,7 +452,13 @@ func parseFlags() (Config, error) {
 	prefix := flag.String("prefix", "", "optional prefix for the output file's name")
 	folder := flag.String("folder", "", "target folder for output file (default: current dir)")
 	workers := flag.Int("workers", 0, "number of concurrent downloads(default: 4) ")
+	version := flag.Bool("version", false, "show version and exit")
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("tvd %s", Version)
+		os.Exit(0)
+	}
 
 	if *client != "" {
 		config.ClientID = *client
