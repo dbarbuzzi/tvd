@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -14,7 +15,10 @@ type Config struct {
 	ClientID     string
 	Quality      string
 	StartTime    string
+	StartSec     int
 	EndTime      string
+	EndSec       int
+	Length       string
 	VodID        int
 	FilePrefix   string
 	OutputFolder string
@@ -34,6 +38,9 @@ func (c *Config) Update(c2 Config) {
 	}
 	if c2.EndTime != "" {
 		c.EndTime = c2.EndTime
+	}
+	if c2.Length != "" {
+		c.EndTime = c2.Length
 	}
 	if c2.VodID != 0 {
 		c.VodID = c2.VodID
@@ -67,8 +74,14 @@ func (c Config) Validate() error {
 	if c.StartTime != "start" && !timeRegex.MatchString(c.StartTime) {
 		return fmt.Errorf("error: StartTime must be 'start' or in format '%s'; got '%s'", timePattern, c.StartTime)
 	}
-	if c.EndTime != "end" && !timeRegex.MatchString(c.EndTime) {
+	if c.EndTime != "" && c.Length == "" {
+		return errors.New("error: must specify either EndTime or Length")
+	}
+	if c.Length == "" && c.EndTime != "end" && !timeRegex.MatchString(c.EndTime) {
 		return fmt.Errorf("error: EndTime must be 'end' or in format '%s'; got '%s'", timePattern, c.EndTime)
+	}
+	if c.EndTime == "" && c.Length != "full" && !timeRegex.MatchString(c.Length) {
+		return fmt.Errorf("error: Length must be 'full' or in format '%s'; got '%s'", timePattern, c.Length)
 	}
 
 	qualityPattern := `\d{3,4}p[36]0`
@@ -83,6 +96,41 @@ func (c Config) Validate() error {
 
 	if c.Workers < 1 {
 		return fmt.Errorf("error: Worker must be an integer greater than 0; got '%d'", c.Workers)
+	}
+
+	return nil
+}
+
+// ResolveEndTime is a hacky way of supporting organically support the new
+// 'length' option. If that prop is included, it is used to calculate & update
+// EndTime prop (it is intended to override)
+func (c *Config) ResolveEndTime() error {
+	startAt, err := timeInputToSeconds(c.StartTime)
+	if err != nil {
+		return err
+	}
+	c.StartSec = startAt
+
+	if c.Length != "" {
+		if c.Length == "full" {
+			c.EndSec = -1
+		} else {
+			endAt, err := timeInputToSeconds(c.Length)
+			if err != nil {
+				return err
+			}
+			c.EndSec = startAt + endAt
+		}
+	} else {
+		if c.EndTime == "end" {
+			c.EndSec = -1
+		} else {
+			endAt, err := timeInputToSeconds(c.EndTime)
+			if err != nil {
+				return err
+			}
+			c.EndSec = endAt
+		}
 	}
 
 	return nil
