@@ -59,6 +59,11 @@ func main() {
 		log.Fatalln(err)
 	}
 	config.Update(flagConfig)
+	err = config.ResolveEndTime()
+	if err != nil {
+		fmt.Println(err)
+		log.Fatalln(err)
+	}
 	log.Printf("Final config: %+v\n", config)
 	err = config.Validate()
 	if err != nil {
@@ -106,7 +111,7 @@ func DownloadVOD(cfg Config) error {
 	}
 
 	fmt.Println("Pruning chunk list")
-	chunks, clipDur, err := pruneChunks(chunks, cfg.StartTime, cfg.EndTime, chunkDur)
+	chunks, clipDur, err := pruneChunks(chunks, cfg.StartSec, cfg.EndSec, chunkDur)
 	if err != nil {
 		return err
 	}
@@ -125,7 +130,7 @@ func DownloadVOD(cfg Config) error {
 	}()
 
 	fmt.Println("Building output filepath")
-	outFile, err := buildOutFilePath(cfg.VodID, cfg.StartTime, clipDur, cfg.FilePrefix, cfg.OutputFolder)
+	outFile, err := buildOutFilePath(cfg.VodID, cfg.StartSec, clipDur, cfg.FilePrefix, cfg.OutputFolder)
 	if err != nil {
 		return err
 	}
@@ -226,20 +231,15 @@ func getChunks(streamURL string) ([]Chunk, int, error) {
 	return chunks, chunkDur, nil
 }
 
-func pruneChunks(chunks []Chunk, startTime, endTime string, duration int) ([]Chunk, int, error) {
-	startAt, err := timeInputToSeconds(startTime)
-	if err != nil {
-		return nil, 0.0, err
-	}
-	startAt = startAt / duration
+func pruneChunks(chunks []Chunk, startSec, endSec int, duration int) ([]Chunk, int, error) {
+	startAt := startSec / duration
 	// assume "end", work to determine actual end chunk if different
 	endAt := len(chunks)
-	if endTime != "end" {
-		endAt, err = timeInputToSeconds(endTime)
-		if err != nil {
-			return nil, 0.0, err
-		}
-		endAt = endAt / duration
+	if endSec != -1 {
+		endAt = endSec / duration
+	}
+	if endAt > len(chunks) {
+		endAt = len(chunks)
 	}
 
 	log.Printf("Start at chunk:          %d\n", startAt)
@@ -339,12 +339,8 @@ func downloadChunk(c Chunk) error {
 	return nil
 }
 
-func buildOutFilePath(vodID int, startTime string, dur int, prefix string, folder string) (string, error) {
-	startAt, err := timeInputToSeconds(startTime)
-	if err != nil {
-		return "", err
-	}
-	startTime = secondsToTimeMask(startAt)
+func buildOutFilePath(vodID int, startAt int, dur int, prefix string, folder string) (string, error) {
+	startTime := secondsToTimeMask(startAt)
 	endAt := startAt + dur
 	endTime := secondsToTimeMask(endAt)
 
@@ -452,6 +448,7 @@ func parseFlags() (Config, error) {
 	quality := flag.String("quality", "", "desired quality ('720p30', 'best', etc.)")
 	startTime := flag.String("start", "", "start time (e.g. '0 15 0' to start at 15 minute mark)")
 	endTime := flag.String("end", "", "end time (e.g. '0 30 0' to end at 30 minute mark)")
+	length := flag.String("length", "", "length form start time, same format")
 	prefix := flag.String("prefix", "", "optional prefix for the output file's name")
 	folder := flag.String("folder", "", "target folder for output file (default: current dir)")
 	workers := flag.Int("workers", 0, "number of concurrent downloads(default: 4) ")
@@ -468,6 +465,9 @@ func parseFlags() (Config, error) {
 	}
 	if *endTime != "" {
 		config.EndTime = *endTime
+	}
+	if *length != "" {
+		config.Length = *length
 	}
 	if *prefix != "" {
 		config.FilePrefix = *prefix
