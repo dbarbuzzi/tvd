@@ -80,8 +80,8 @@ func (c Config) Validate() error {
 	if c.Length == "" && c.EndTime != "end" && !timeRegex.MatchString(c.EndTime) {
 		return fmt.Errorf("error: EndTime must be 'end' or in format '%s'; got '%s'", timePattern, c.EndTime)
 	}
-	if c.EndTime == "" && c.Length != "end" && !timeRegex.MatchString(c.Length) {
-		return fmt.Errorf("error: Length must be 'end' or in format '%s'; got '%s'", timePattern, c.Length)
+	if c.EndTime == "" && c.Length != "full" && !timeRegex.MatchString(c.Length) {
+		return fmt.Errorf("error: Length must be 'full' or in format '%s'; got '%s'", timePattern, c.Length)
 	}
 
 	qualityPattern := `\d{3,4}p[36]0`
@@ -112,7 +112,7 @@ func (c *Config) ResolveEndTime() error {
 	c.StartSec = startAt
 
 	if c.Length != "" {
-		if c.Length == "end" {
+		if c.Length == "full" {
 			c.EndSec = -1
 		} else {
 			endAt, err := timeInputToSeconds(c.Length)
