@@ -5,7 +5,7 @@ tvd (**T**witch **V**OD **D**ownloader) is a command-line tool to download VODs 
 ## Prerequisites
 
 * You must have [ffmpeg](https://www.ffmpeg.org/) available on your path regardless of platform.
-* If using the source, you must register a new app on the Twitch Dev site to get your own client ID
+* If building from source, you must register a new app on the Twitch Dev site to get your own client ID
   * Provided releases have an embedded client ID
 
 ## Download
@@ -18,7 +18,7 @@ Configuration is supported via config file and/org command-line flags. Values in
 
 ### Config file
 
-Create a file named `tvd-config.toml` and copy the contents from `config-sample.toml` as a baseline. Marked values are optional and can be omitted to use defaults.
+Using a config file is alternative to command-line arguments. It can be used in conjunction with command-line arguments in which case command-line arguments will take precedence when duplicates are detected. Create a file named `config.toml` and copy the contents from `config-sample.toml` as a baseline. Marked values are optional and can be omitted to use defaults.
 
 The accepted values are:
 
@@ -26,12 +26,14 @@ The accepted values are:
 * `Quality` (optional) - desired quality (e.g. “720p60”, “480p30”); can use “best” for best available (default: "best")
 * `StartTime` – start time in the format "HOURS MINUTES SECONDS" (e.g. "1 24 35" is 1h24m35s)
 * `EndTime` – end time in the same format as above (also supported: "end")
+* `Length` - duration in same format as `StartTime`/`EndTime` (also supported: "full")
+  * Either `EndTime` or `Length` is required. If both are specified, `Length` takes precedence.
 * `VodID` – ID of the VOD to be downloaded
 * `FilePrefix` (optional) – Prefix for the output filename, include your own separator (default: none)
 * `OutputFolder` (optional) – Full path to the folder to save the file (e.g. `/Users/username/downloads` or `C:\Users\username\`) (default: current working directory)
 * `Workers` (optional) – Number of concurrent downloads (default: 4)
 
-### Command-line flags
+### Command-line usage
 
 All options supported above are also supported through the command-line under the following flags:
 
@@ -39,6 +41,7 @@ All options supported above are also supported through the command-line under th
 * `quality` => `Quality`
 * `start` => `StartTime`
 * `end` => `EndTime`
+* `length` => `Length`
 * `prefix` => `FilePrefix`
 * `folder` => `OutputFolder`
 * `workers` => `Workers`
