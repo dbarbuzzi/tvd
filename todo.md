@@ -1,15 +1,15 @@
 # Todo
 
-- [x] General output
-- [x] Debug logging to file
-- [x] Progress bar for chunk download
-- [ ] Rename config file to be more unique / prevent conflicts
-- [x] Remove ClientID from config and temporarilty add it to code during build process
-- [x] Support command-line args/flags
-- [x] Validate "config" values after aggregated & before moving on
+- [ ] Create "logs" dir if it doesn't already exist
+- [x] Change "-version" flag to print a full line (add line break)
+- [ ] Change location of config file
+    - [ ] default location should be "$HOME/config/.tvd"
+    - [ ] CLI flag to specify different location
+- [ ] Change content of config file
+    - [ ] Should be strictly config related (Api key, workers)
+    - [ ] Create "job" files / format for other per-job values
 - [ ] Further logging to file
   - [ ] Spinning up workers
   - [ ] Worker receiving a task
   - [ ] Chunk download complete or worker completing a task
-  - Any other relevant worker-/download-related areas
-- [ ] Add "Length" flag/config option as alternative option to "EndTime"
+  - Any other relevant worker-/download-related areas?
