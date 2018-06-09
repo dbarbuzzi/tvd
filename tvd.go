@@ -456,7 +456,7 @@ func parseFlags() (Config, error) {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("tvd %s", Version)
+		fmt.Printf("tvd %s\n", Version)
 		os.Exit(0)
 	}
 
