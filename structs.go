@@ -74,7 +74,7 @@ func (c Config) Validate() error {
 	if c.StartTime != "start" && !timeRegex.MatchString(c.StartTime) {
 		return fmt.Errorf("error: StartTime must be 'start' or in format '%s'; got '%s'", timePattern, c.StartTime)
 	}
-	if c.EndTime != "" && c.Length == "" {
+	if c.EndTime == "" && c.Length == "" {
 		return errors.New("error: must specify either EndTime or Length")
 	}
 	if c.Length == "" && c.EndTime != "end" && !timeRegex.MatchString(c.EndTime) {
