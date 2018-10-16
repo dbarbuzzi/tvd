@@ -25,6 +25,13 @@ type Config struct {
 	Workers      int
 }
 
+// WithoutClientID returns a copy of the struct with the ClientID field censored (e.g. for logging)
+func (c Config) WithoutClientID() Config {
+	c2 := c
+	c2.ClientID = "********"
+	return c2
+}
+
 // Update replaces any config values in the base object with those present in the passed argument
 func (c *Config) Update(c2 Config) {
 	if c2.ClientID != "" {
