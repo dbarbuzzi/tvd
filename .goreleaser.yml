@@ -6,7 +6,6 @@ release:
   github:
     owner: dbarbuzzi
     name: tvd
-  draft: true
 archive:
   replacements:
     darwin: macOS
@@ -21,12 +20,6 @@ checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
 snapshot:
   name_template: "{{ .Tag }}-next"
-changelog:
-  sort: asc
-  filters:
-    exclude:
-    - '^docs:'
-    - '^test:'
 build:
   binary: tvd
   ldflags: "-s -w -X main.Version={{ .Version }} -X main.ClientID={{ .Env.TVD_CLIENT_ID }}"
@@ -43,7 +36,7 @@ brew:
   name: tvd
   github:
     owner: dbarbuzzi
-    name: hombrew-tap
+    name: homebrew-tap
   commit_author:
     name: dbarbuzzi
     email: dbarbuzzi@gmail.com
