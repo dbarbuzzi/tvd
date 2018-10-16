@@ -21,12 +21,6 @@ checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
 snapshot:
   name_template: "{{ .Tag }}-next"
-changelog:
-  sort: asc
-  filters:
-    exclude:
-    - '^docs:'
-    - '^test:'
 build:
   binary: tvd
   ldflags: "-s -w -X main.Version={{ .Version }} -X main.ClientID={{ .Env.TVD_CLIENT_ID }}"
