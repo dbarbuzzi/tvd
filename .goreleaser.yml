@@ -37,7 +37,7 @@ brew:
   name: tvd
   github:
     owner: dbarbuzzi
-    name: hombrew-tap
+    name: homebrew-tap
   commit_author:
     name: dbarbuzzi
     email: dbarbuzzi@gmail.com
