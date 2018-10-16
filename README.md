@@ -10,18 +10,18 @@ tvd (**T**witch **V**OD **D**ownloader) is a command-line tool to download VODs 
 
 ## Download
 
-### macOS / Homebrew
+### macOS + Homebrew
 
-If you’re using homebrew on macOS, you can use it to install `tvd`:
+If you’re using [Homebrew](https://brew.sh) on macOS, you can use it to install `tvd`:
 
 ```bash
 brew tap github.com/dbarbuzzi/homebrew-tap
 brew install tvd
 ```
 
-### Windows / Scoop
+### Windows + Scoop
 
-If you’re using scoop on Windows, you can use it to install `tvd`:
+If you’re using [Scoop](https://scoop.sh) on Windows, you can use it to install `tvd`:
 
 ```powershell
 scoop bucket add dbarbuzzi https://github.com/dbarbuzzi/scoop-bucket.git
