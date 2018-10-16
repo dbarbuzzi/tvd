@@ -64,7 +64,7 @@ func main() {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
-	log.Printf("Final config: %+v\n", config)
+	log.Printf("Final config: %+v\n", config.WithoutClientID())
 	err = config.Validate()
 	if err != nil {
 		fmt.Println(err)
@@ -423,7 +423,7 @@ func loadConfig(f string) Config {
 		Quality:  "best",
 		Workers:  4,
 	}
-	log.Printf("Default config: %+v\n", config)
+	log.Printf("Default config: %+v\n", config.WithoutClientID())
 
 	configData, err := ioutil.ReadFile(f)
 	if err != nil {
@@ -437,7 +437,7 @@ func loadConfig(f string) Config {
 		return config
 	}
 
-	log.Printf("Config after parsing config file: %+v\n", config)
+	log.Printf("Config after parsing config file: %+v\n", config.WithoutClientID())
 	return config
 }
 
@@ -493,7 +493,7 @@ func parseFlags() (Config, error) {
 		config.VodID = vID
 	}
 
-	log.Printf("Flag config: %+v\n", config)
+	log.Printf("Flag config: %+v\n", config.WithoutClientID())
 	return config, nil
 }
 
