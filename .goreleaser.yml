@@ -1,7 +1,7 @@
 project_name: tvd
 before:
   hooks:
-  - bash .clientid
+    - bash clientid_check.sh
 release:
   github:
     owner: dbarbuzzi
@@ -29,7 +29,7 @@ changelog:
     - '^test:'
 build:
   binary: tvd
-  ldflags: "-s -w -X main.Version={{ .Version }} -X main.ClientID=${TVD_CLIENT_ID}"
+  ldflags: "-s -w -X main.Version={{ .Version }} -X main.ClientID={{ .Env.TVD_CLIENT_ID }}"
   goos:
     - darwin
     - linux
