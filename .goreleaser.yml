@@ -6,7 +6,6 @@ release:
   github:
     owner: dbarbuzzi
     name: tvd
-  draft: true
 archive:
   replacements:
     darwin: macOS
