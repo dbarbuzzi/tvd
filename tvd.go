@@ -207,7 +207,7 @@ func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
 		return atr, fmt.Errorf("error: sig and/or token were empty: %+v", atr)
 	}
 
-	log.Printf("Access Token:\n    Sig:   %s\n    Token: %s\n", atr.Sig, atr.Token)
+	log.Printf("access token: %+v\n", atr)
 
 	return atr, nil
 }
@@ -224,7 +224,7 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 	re := regexp.MustCompile(`BANDWIDTH=(\d+),.*?VIDEO="(.*?)"\n(.*?)\n`)
 	matches := re.FindAllStringSubmatch(string(respData), -1)
 	if len(matches) == 0 {
-		log.Printf("Response for m3u:\n%s\n", respData)
+		log.Printf("response for m3u:\n%s\n", respData)
 		return nil, fmt.Errorf("error: no matches found")
 	}
 
@@ -239,10 +239,7 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 		}
 	}
 
-	log.Printf("Qualities options found:\n")
-	for k, v := range ql {
-		log.Printf("    %s: %s\n", k, v)
-	}
+	log.Printf("qualities options found: %+v\n", ql)
 
 	return ql, nil
 }
@@ -268,12 +265,12 @@ func getChunks(streamURL string) ([]Chunk, int, error) {
 		chunkURL = baseURL.ResolveReference(chunkURL)
 		chunks = append(chunks, Chunk{Name: match[2], Length: length, URL: chunkURL})
 	}
-	log.Printf("Found %d chunks", len(chunks))
+	log.Printf("found %d chunks", len(chunks))
 
 	re = regexp.MustCompile(`#EXT-X-TARGETDURATION:(\d+)\n`)
 	match := re.FindStringSubmatch(string(respData))
 	chunkDur, _ := strconv.Atoi(match[1])
-	log.Printf("Target chunk duration: %d", chunkDur)
+	log.Printf("target chunk duration: %d", chunkDur)
 
 	return chunks, chunkDur, nil
 }
@@ -289,6 +286,7 @@ func pruneChunks(chunks []Chunk, startSec, endSec int, duration int) ([]Chunk, i
 		endAt = len(chunks)
 	}
 
+	log.Println("Chunk management:")
 	log.Printf("Start at chunk:          %4d\n", startAt)
 	log.Printf("End at chunk:            %4d\n", endAt)
 
@@ -373,7 +371,7 @@ func downloadChunk(c Chunk) error {
 	defer func() {
 		err = chunkFile.Close()
 		if err != nil {
-			fmt.Printf("error closing chunk file %s: %s\n", c.Name, err.Error())
+			fmt.Printf("error closing chunk file %s: %s\n", c.Name, err)
 			log.Fatalln(err)
 		}
 	}()
@@ -401,7 +399,7 @@ func buildOutFilePath(vodID int, startAt int, dur int, prefix string, folder str
 		filename = filepath.Join(folder, filename)
 	}
 
-	log.Printf("Output file: %s\n", filename)
+	log.Printf("output file: %s\n", filename)
 	return filename, nil
 }
 
@@ -451,7 +449,7 @@ func timeInputToSeconds(t string) (int, error) {
 	}
 
 	s := hours*3600 + minutes*60 + seconds
-	log.Printf("Converted '%s' to %d seconds\n", t, s)
+	log.Printf("converted '%s' to %d seconds\n", t, s)
 	return s, nil
 }
 
@@ -460,7 +458,7 @@ func secondsToTimeMask(s int) string {
 	minutes := s % 3600 / 60
 	seconds := s % 60
 	res := fmt.Sprintf("%02dh%02dm%02ds", hours, minutes, seconds)
-	log.Printf("Masked %d seconds as '%s'\n", s, res)
+	log.Printf("masked %d seconds as '%s'\n", s, res)
 	return res
 }
 
@@ -515,7 +513,7 @@ func buildConfigFromFlags() (Config, error) {
 }
 
 func readURL(url string) ([]byte, error) {
-	log.Printf("Requesting URL: %s\n", url)
+	log.Printf("requesting URL: %s\n", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
