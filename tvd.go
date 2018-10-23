@@ -312,11 +312,13 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 	results := make(chan string, len(chunks))
 
 	// Spin up workers
+	log.Printf("spinning up %d workers", workers)
 	for w := 1; w < workers; w++ {
 		go downloadWorker(w, jobs, results)
 	}
 
 	// Fill job queue with chunks
+	log.Printf("filling job queue with %d chunks", len(chunks))
 	for i, c := range chunks {
 		c.Path = filepath.Join(tempDir, c.Name)
 		chunks[i] = c
@@ -327,6 +329,7 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 	bar := pb.StartNew(len(chunks))
 
 	// Wait for results to come in
+	log.Printf("waiting for results from workers")
 	for r := 0; r < len(chunks); r++ {
 		res := <-results
 		// below error-catching is untested... cross your fingers
@@ -342,12 +345,16 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 }
 
 func downloadWorker(id int, chunks <-chan Chunk, results chan<- string) {
+	log.Printf("worker %02d: spinning up", id)
 	for chunk := range chunks {
+		log.Printf("worker %02d: received a chunk", id)
 		err := downloadChunk(chunk)
 		res := ""
 		if err != nil {
+			log.Printf("worker %02d: chunk download failed", id)
 			res = err.Error()
 		}
+		log.Printf("worker %02d: downloaded a chunk", id)
 		results <- res
 	}
 }
