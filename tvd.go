@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,19 +21,44 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/pkg/errors"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/cheggaaa/pb.v1"
 )
 
-// below block's vars are populated via ldflags during build
+// vars intended to be populated via ldflags during build
 var (
 	// ClientID is provided by the Twitch API when registering an application
 	ClientID string
-	// Version is the release version
-	Version string
+	// Version is the build/release version
+	Version = "dev"
+)
+
+// command-line args/flags
+var (
+	clientID   = kingpin.Flag("client", "Twitch app Client ID").Short('C').String()
+	workers    = kingpin.Flag("workers", "Max number of concurrent downloads (default: 4)").Short('w').Int()
+	configFile = kingpin.Flag("config", "Path to config file").Short('c').Default("config.toml").String()
+
+	vodID = kingpin.Arg("vod", "ID of the VOD to download").Default("0").Int()
+
+	quality   = kingpin.Flag("quality", "Desired quality (e.g. '720p30' or 'best')").Short('Q').String()
+	startTime = kingpin.Flag("start", "Start time for saved file (e.g. '0 15 0' to start at 15 minute mark)").Short('s').String()
+	endTime   = kingpin.Flag("end", "End time for saved file (e.g. '0 30 0' to end at 30 minute mark)").Short('e').String()
+	length    = kingpin.Flag("length", "Length from start time, overrides end time (e.g. '0 15 0' for 15 minutes from start time)").Short('l').String()
+
+	prefix  = kingpin.Flag("prefix", "Prefix for the output filename").Short('p').String()
+	folder  = kingpin.Flag("folder", "Target folder for saved file (default: current dir)").Short('f').String()
+	outFile = kingpin.Flag("output", "NOT YET IMPLEMENTED").Short('o').String()
 )
 
 func main() {
-	// Initialize logging to file
+	// parse command-line input
+	kingpin.CommandLine.HelpFlag.Short('h')
+	kingpin.Version(Version)
+	kingpin.Parse()
+
+	// initialize logging to file
 	now := time.Now()
 	logfilepath := fmt.Sprintf("logs/%s.log", now.Format("20060102-030405"))
 	logfile, err := os.OpenFile(logfilepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
@@ -49,22 +73,43 @@ func main() {
 	}()
 	log.SetOutput(logfile)
 
-	// config file
-	config := loadConfig("config.toml")
+	// set base config
+	config := Config{
+		ClientID:  ClientID,
+		Workers:   4,
+		StartTime: "0 0 0",
+		EndTime:   "end",
+		Quality:   "best",
+	}
+	log.Printf("default config: %+v\n", config.WithoutClientID())
 
-	// flags (todo)
-	flagConfig, err := parseFlags()
+	// config file
+	fileConfig, err := loadConfig(*configFile)
 	if err != nil {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
+	log.Printf("config from file: %+v\n", config.WithoutClientID())
+	config.Update(fileConfig)
+	log.Printf("config after merging config file: %+v\n", config.WithoutClientID())
+
+	// flags (todo)
+	flagConfig, err := buildConfigFromFlags()
+	if err != nil {
+		fmt.Println(err)
+		log.Fatalln(err)
+	}
+	log.Printf("config from cli args/flags: %+v\n", config.WithoutClientID())
 	config.Update(flagConfig)
+	log.Printf("config after merging cli args/flags: %+v\n", config.WithoutClientID())
+
+	// some validation before actually attempting to use the config
+	// TODO: Relocate validation to more logical places
 	err = config.ResolveEndTime()
 	if err != nil {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
-	log.Printf("Final config: %+v\n", config.WithoutClientID())
 	err = config.Validate()
 	if err != nil {
 		fmt.Println(err)
@@ -242,12 +287,12 @@ func pruneChunks(chunks []Chunk, startSec, endSec int, duration int) ([]Chunk, i
 		endAt = len(chunks)
 	}
 
-	log.Printf("Start at chunk:          %d\n", startAt)
-	log.Printf("End at chunk:            %d\n", endAt)
+	log.Printf("Start at chunk:          %4d\n", startAt)
+	log.Printf("End at chunk:            %4d\n", endAt)
 
 	res := chunks[startAt:endAt]
 
-	log.Printf("Number of pruned chunks: %d\n", len(res))
+	log.Printf("Number of pruned chunks: %4d\n", len(res))
 
 	actualDuration := 0.0
 	for _, c := range res {
@@ -417,51 +462,27 @@ func secondsToTimeMask(s int) string {
 	return res
 }
 
-func loadConfig(f string) Config {
-	config := Config{
-		ClientID: ClientID,
-		Quality:  "best",
-		Workers:  4,
-	}
-	log.Printf("Default config: %+v\n", config.WithoutClientID())
+func loadConfig(f string) (Config, error) {
+	var config Config
 
 	configData, err := ioutil.ReadFile(f)
 	if err != nil {
-		fmt.Println("W: Failed to load config.toml: ", err)
-		return config
+		return config, errors.Wrap(err, "failed to load config file")
 	}
 
 	err = toml.Unmarshal(configData, &config)
 	if err != nil {
-		fmt.Println("W: Failed to parse config.toml: ", err)
-		return config
+		return config, errors.Wrap(err, "failed to parse config file")
 	}
 
-	log.Printf("Config after parsing config file: %+v\n", config.WithoutClientID())
-	return config
+	return config, nil
 }
 
-func parseFlags() (Config, error) {
+func buildConfigFromFlags() (Config, error) {
 	var config Config
 
-	client := flag.String("client", "", "client ID of registered Twitch App")
-	quality := flag.String("quality", "", "desired quality ('720p30', 'best', etc.)")
-	startTime := flag.String("start", "", "start time (e.g. '0 15 0' to start at 15 minute mark)")
-	endTime := flag.String("end", "", "end time (e.g. '0 30 0' to end at 30 minute mark)")
-	length := flag.String("length", "", "length form start time, same format")
-	prefix := flag.String("prefix", "", "optional prefix for the output file's name")
-	folder := flag.String("folder", "", "target folder for output file (default: current dir)")
-	workers := flag.Int("workers", 0, "number of concurrent downloads(default: 4) ")
-	version := flag.Bool("version", false, "show version and exit")
-	flag.Parse()
-
-	if *version {
-		fmt.Printf("tvd %s\n", Version)
-		os.Exit(0)
-	}
-
-	if *client != "" {
-		config.ClientID = *client
+	if *clientID != "" {
+		config.ClientID = *clientID
 	}
 	if *quality != "" {
 		config.Quality = *quality
@@ -484,16 +505,10 @@ func parseFlags() (Config, error) {
 	if *workers != 0 {
 		config.Workers = *workers
 	}
-
-	if len(flag.Args()) > 0 {
-		vID, err := strconv.Atoi(flag.Arg(0))
-		if err != nil {
-			return config, err
-		}
-		config.VodID = vID
+	if *vodID != 0 {
+		config.VodID = *vodID
 	}
 
-	log.Printf("Flag config: %+v\n", config.WithoutClientID())
 	return config, nil
 }
 
