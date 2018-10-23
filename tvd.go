@@ -18,7 +18,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
@@ -39,6 +38,7 @@ var (
 	clientID   = kingpin.Flag("client", "Twitch app Client ID").Short('C').String()
 	workers    = kingpin.Flag("workers", "Max number of concurrent downloads (default: 4)").Short('w').Int()
 	configFile = kingpin.Flag("config", "Path to config file").Short('c').Default("config.toml").String()
+	logFile    = kingpin.Flag("logfile", "Path to logfile").Short('L').String()
 
 	vodID = kingpin.Arg("vod", "ID of the VOD to download").Default("0").Int()
 
@@ -58,20 +58,22 @@ func main() {
 	kingpin.Version(Version)
 	kingpin.Parse()
 
-	// initialize logging to file
-	now := time.Now()
-	logfilepath := fmt.Sprintf("logs/%s.log", now.Format("20060102-030405"))
-	logfile, err := os.OpenFile(logfilepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		log.Fatalln("Failed to create log file")
-	}
-	defer func() {
-		err = logfile.Close()
+	// log to file if one is specified, otherwise write to nowhere
+	if *logFile != "" {
+		logfile, err := os.OpenFile(*logFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
-			log.Fatalln("Failed to close log file")
+			log.Fatalln("failed to create log file")
 		}
-	}()
-	log.SetOutput(logfile)
+		defer func() {
+			err = logfile.Close()
+			if err != nil {
+				log.Fatalln("failed to close log file")
+			}
+		}()
+		log.SetOutput(logfile)
+	} else {
+		log.SetOutput(ioutil.Discard)
+	}
 
 	// set base config
 	config := Config{
