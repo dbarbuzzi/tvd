@@ -18,7 +18,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
@@ -39,6 +38,7 @@ var (
 	clientID   = kingpin.Flag("client", "Twitch app Client ID").Short('C').String()
 	workers    = kingpin.Flag("workers", "Max number of concurrent downloads (default: 4)").Short('w').Int()
 	configFile = kingpin.Flag("config", "Path to config file").Short('c').Default("config.toml").String()
+	logFile    = kingpin.Flag("logfile", "Path to logfile").Short('L').String()
 
 	vodID = kingpin.Arg("vod", "ID of the VOD to download").Default("0").Int()
 
@@ -58,20 +58,22 @@ func main() {
 	kingpin.Version(Version)
 	kingpin.Parse()
 
-	// initialize logging to file
-	now := time.Now()
-	logfilepath := fmt.Sprintf("logs/%s.log", now.Format("20060102-030405"))
-	logfile, err := os.OpenFile(logfilepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		log.Fatalln("Failed to create log file")
-	}
-	defer func() {
-		err = logfile.Close()
+	// log to file if one is specified, otherwise write to nowhere
+	if *logFile != "" {
+		logfile, err := os.OpenFile(*logFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
-			log.Fatalln("Failed to close log file")
+			log.Fatalln("failed to create log file")
 		}
-	}()
-	log.SetOutput(logfile)
+		defer func() {
+			err = logfile.Close()
+			if err != nil {
+				log.Fatalln("failed to close log file")
+			}
+		}()
+		log.SetOutput(logfile)
+	} else {
+		log.SetOutput(ioutil.Discard)
+	}
 
 	// set base config
 	config := Config{
@@ -205,7 +207,7 @@ func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
 		return atr, fmt.Errorf("error: sig and/or token were empty: %+v", atr)
 	}
 
-	log.Printf("Access Token:\n    Sig:   %s\n    Token: %s\n", atr.Sig, atr.Token)
+	log.Printf("access token: %+v\n", atr)
 
 	return atr, nil
 }
@@ -222,7 +224,7 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 	re := regexp.MustCompile(`BANDWIDTH=(\d+),.*?VIDEO="(.*?)"\n(.*?)\n`)
 	matches := re.FindAllStringSubmatch(string(respData), -1)
 	if len(matches) == 0 {
-		log.Printf("Response for m3u:\n%s\n", respData)
+		log.Printf("response for m3u:\n%s\n", respData)
 		return nil, fmt.Errorf("error: no matches found")
 	}
 
@@ -237,10 +239,7 @@ func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, er
 		}
 	}
 
-	log.Printf("Qualities options found:\n")
-	for k, v := range ql {
-		log.Printf("    %s: %s\n", k, v)
-	}
+	log.Printf("qualities options found: %+v\n", ql)
 
 	return ql, nil
 }
@@ -266,12 +265,12 @@ func getChunks(streamURL string) ([]Chunk, int, error) {
 		chunkURL = baseURL.ResolveReference(chunkURL)
 		chunks = append(chunks, Chunk{Name: match[2], Length: length, URL: chunkURL})
 	}
-	log.Printf("Found %d chunks", len(chunks))
+	log.Printf("found %d chunks", len(chunks))
 
 	re = regexp.MustCompile(`#EXT-X-TARGETDURATION:(\d+)\n`)
 	match := re.FindStringSubmatch(string(respData))
 	chunkDur, _ := strconv.Atoi(match[1])
-	log.Printf("Target chunk duration: %d", chunkDur)
+	log.Printf("target chunk duration: %d", chunkDur)
 
 	return chunks, chunkDur, nil
 }
@@ -287,6 +286,7 @@ func pruneChunks(chunks []Chunk, startSec, endSec int, duration int) ([]Chunk, i
 		endAt = len(chunks)
 	}
 
+	log.Println("Chunk management:")
 	log.Printf("Start at chunk:          %4d\n", startAt)
 	log.Printf("End at chunk:            %4d\n", endAt)
 
@@ -312,11 +312,13 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 	results := make(chan string, len(chunks))
 
 	// Spin up workers
+	log.Printf("spinning up %d workers", workers)
 	for w := 1; w < workers; w++ {
 		go downloadWorker(w, jobs, results)
 	}
 
 	// Fill job queue with chunks
+	log.Printf("filling job queue with %d chunks", len(chunks))
 	for i, c := range chunks {
 		c.Path = filepath.Join(tempDir, c.Name)
 		chunks[i] = c
@@ -327,6 +329,7 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 	bar := pb.StartNew(len(chunks))
 
 	// Wait for results to come in
+	log.Printf("waiting for results from workers")
 	for r := 0; r < len(chunks); r++ {
 		res := <-results
 		// below error-catching is untested... cross your fingers
@@ -342,12 +345,16 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 }
 
 func downloadWorker(id int, chunks <-chan Chunk, results chan<- string) {
+	log.Printf("worker %02d: spinning up", id)
 	for chunk := range chunks {
+		log.Printf("worker %02d: received a chunk", id)
 		err := downloadChunk(chunk)
 		res := ""
 		if err != nil {
+			log.Printf("worker %02d: chunk download failed", id)
 			res = err.Error()
 		}
+		log.Printf("worker %02d: downloaded a chunk", id)
 		results <- res
 	}
 }
@@ -371,7 +378,7 @@ func downloadChunk(c Chunk) error {
 	defer func() {
 		err = chunkFile.Close()
 		if err != nil {
-			fmt.Printf("error closing chunk file %s: %s\n", c.Name, err.Error())
+			fmt.Printf("error closing chunk file %s: %s\n", c.Name, err)
 			log.Fatalln(err)
 		}
 	}()
@@ -399,7 +406,7 @@ func buildOutFilePath(vodID int, startAt int, dur int, prefix string, folder str
 		filename = filepath.Join(folder, filename)
 	}
 
-	log.Printf("Output file: %s\n", filename)
+	log.Printf("output file: %s\n", filename)
 	return filename, nil
 }
 
@@ -449,7 +456,7 @@ func timeInputToSeconds(t string) (int, error) {
 	}
 
 	s := hours*3600 + minutes*60 + seconds
-	log.Printf("Converted '%s' to %d seconds\n", t, s)
+	log.Printf("converted '%s' to %d seconds\n", t, s)
 	return s, nil
 }
 
@@ -458,7 +465,7 @@ func secondsToTimeMask(s int) string {
 	minutes := s % 3600 / 60
 	seconds := s % 60
 	res := fmt.Sprintf("%02dh%02dm%02ds", hours, minutes, seconds)
-	log.Printf("Masked %d seconds as '%s'\n", s, res)
+	log.Printf("masked %d seconds as '%s'\n", s, res)
 	return res
 }
 
@@ -513,7 +520,7 @@ func buildConfigFromFlags() (Config, error) {
 }
 
 func readURL(url string) ([]byte, error) {
-	log.Printf("Requesting URL: %s\n", url)
+	log.Printf("requesting URL: %s\n", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
