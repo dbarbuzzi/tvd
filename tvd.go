@@ -31,13 +31,24 @@ var (
 	ClientID string
 	// Version is the build/release version
 	Version = "dev"
+
+	DefaultConfig = Config{
+		ClientID:  ClientID,
+		Workers:   4,
+		StartTime: "0 0 0",
+		EndTime:   "end",
+		Quality:   "best",
+	}
+	DefaultConfigFolder = os.ExpandEnv("${HOME}/.config/tvd/")
+	DefaultConfigFile   = "config.toml"
+	DefaultConfigPath   = filepath.Join(DefaultConfigFolder, DefaultConfigFile)
 )
 
 // command-line args/flags
 var (
 	clientID   = kingpin.Flag("client", "Twitch app Client ID").Short('C').String()
 	workers    = kingpin.Flag("workers", "Max number of concurrent downloads (default: 4)").Short('w').Int()
-	configFile = kingpin.Flag("config", "Path to config file").Short('c').Default("config.toml").String()
+	configFile = kingpin.Flag("config", "Path to config file (default: $HOME/.config/tvd/config.toml)").Short('c').String()
 	logFile    = kingpin.Flag("logfile", "Path to logfile").Short('L').String()
 
 	vodID = kingpin.Arg("vod", "ID of the VOD to download").Default("0").Int()
@@ -76,20 +87,27 @@ func main() {
 	}
 
 	// set base config
-	config := Config{
-		ClientID:  ClientID,
-		Workers:   4,
-		StartTime: "0 0 0",
-		EndTime:   "end",
-		Quality:   "best",
-	}
+	config := DefaultConfig
 	log.Printf("default config: %+v\n", config.WithoutClientID())
 
 	// config file
-	fileConfig, err := loadConfig(*configFile)
+	configfile := DefaultConfigPath
+	if *configFile != "" {
+		configfile = *configFile
+	}
+	fileConfig, err := loadConfig(configfile)
 	if err != nil {
-		fmt.Println(err)
-		log.Fatalln(err)
+		if configfile == DefaultConfigPath {
+			log.Print("creating default config file")
+			innerErr := createDefaultConfigFile()
+			if innerErr != nil {
+				fmt.Println(err)
+				log.Fatalln(err)
+			}
+		} else {
+			fmt.Println(err)
+			log.Fatalln(err)
+		}
 	}
 	log.Printf("config from file: %+v\n", config.WithoutClientID())
 	config.Update(fileConfig)
@@ -124,6 +142,24 @@ func main() {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
+}
+
+func createDefaultConfigFile() error {
+	err := os.MkdirAll(DefaultConfigFolder, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	configFile, err := os.Create(DefaultConfigPath)
+	if err != nil {
+		return err
+	}
+	defer configFile.Close()
+
+	// TODO: marshal default config toml to file
+	e := toml.NewEncoder(configFile)
+	err = e.Encode(DefaultConfig)
+	return err
 }
 
 // DownloadVOD downloads a VOD based on the various info passed in the config
