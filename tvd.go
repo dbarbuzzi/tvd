@@ -97,8 +97,17 @@ func main() {
 	}
 	fileConfig, err := loadConfig(configfile)
 	if err != nil {
-		fmt.Println(err)
-		log.Fatalln(err)
+		if configfile == DefaultConfigPath {
+			log.Print("creating default config file")
+			innerErr := createDefaultConfigFile()
+			if innerErr != nil {
+				fmt.Println(err)
+				log.Fatalln(err)
+			}
+		} else {
+			fmt.Println(err)
+			log.Fatalln(err)
+		}
 	}
 	log.Printf("config from file: %+v\n", config.WithoutClientID())
 	config.Update(fileConfig)
@@ -133,6 +142,24 @@ func main() {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
+}
+
+func createDefaultConfigFile() error {
+	err := os.MkdirAll(DefaultConfigFolder, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	configFile, err := os.Create(DefaultConfigPath)
+	if err != nil {
+		return err
+	}
+	defer configFile.Close()
+
+	// TODO: marshal default config toml to file
+	e := toml.NewEncoder(configFile)
+	err = e.Encode(DefaultConfig)
+	return err
 }
 
 // DownloadVOD downloads a VOD based on the various info passed in the config
