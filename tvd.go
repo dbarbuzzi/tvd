@@ -70,6 +70,7 @@ func main() {
 	kingpin.Parse()
 
 	// log to file if one is specified, otherwise write to nowhere
+	log.SetOutput(ioutil.Discard)
 	if *logFile != "" {
 		logfile, err := os.OpenFile(*logFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
@@ -82,8 +83,6 @@ func main() {
 			}
 		}()
 		log.SetOutput(logfile)
-	} else {
-		log.SetOutput(ioutil.Discard)
 	}
 
 	// set base config
