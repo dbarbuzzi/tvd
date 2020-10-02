@@ -1,3 +1,4 @@
+AuthToken = "<access token from browser cookies>"
 ClientID="<twitch api client id>"
 Quality="best"
 StartTime="0 0 0"

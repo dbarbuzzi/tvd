@@ -33,6 +33,7 @@ var (
 	Version = "dev"
 
 	DefaultConfig = Config{
+		AuthToken: "",
 		ClientID:  ClientID,
 		Workers:   4,
 		StartTime: "0 0 0",
@@ -46,6 +47,7 @@ var (
 
 // command-line args/flags
 var (
+	authToken  = kingpin.Flag("auth", "Account session access token from browser sign-in session").Short('T').String()
 	clientID   = kingpin.Flag("client", "Twitch app Client ID").Short('C').String()
 	workers    = kingpin.Flag("workers", "Max number of concurrent downloads (default: 4)").Short('w').Int()
 	configFile = kingpin.Flag("config", "Path to config file (default: $HOME/.config/tvd/config.toml)").Short('c').String()
@@ -88,7 +90,7 @@ func main() {
 
 	// set base config
 	config := DefaultConfig
-	log.Printf("default config: %+v\n", config.WithoutClientID())
+	log.Printf("default config: %+v\n", config.Privatize())
 
 	// config file
 	configfile := DefaultConfigPath
@@ -109,9 +111,9 @@ func main() {
 			log.Fatalln(err)
 		}
 	}
-	log.Printf("config from file: %+v\n", config.WithoutClientID())
+	log.Printf("config from file: %+v\n", config.Privatize())
 	config.Update(fileConfig)
-	log.Printf("config after merging config file: %+v\n", config.WithoutClientID())
+	log.Printf("config after merging config file: %+v\n", config.Privatize())
 
 	// flags (todo)
 	flagConfig, err := buildConfigFromFlags()
@@ -119,9 +121,9 @@ func main() {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
-	log.Printf("config from cli args/flags: %+v\n", config.WithoutClientID())
+	log.Printf("config from cli args/flags: %+v\n", config.Privatize())
 	config.Update(flagConfig)
-	log.Printf("config after merging cli args/flags: %+v\n", config.WithoutClientID())
+	log.Printf("config after merging cli args/flags: %+v\n", config.Privatize())
 
 	// some validation before actually attempting to use the config
 	// TODO: Relocate validation to more logical places
@@ -165,7 +167,7 @@ func createDefaultConfigFile() error {
 // DownloadVOD downloads a VOD based on the various info passed in the config
 func DownloadVOD(cfg Config) error {
 	fmt.Println("Fetching access token")
-	atr, err := getAccessToken(cfg.VodID, cfg.ClientID)
+	atr, err := getAuthToken(cfg.VodID, cfg.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -227,9 +229,10 @@ func DownloadVOD(cfg Config) error {
 	return nil
 }
 
-func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
-	var atr AccessTokenResponse
-	url := fmt.Sprintf("https://api.twitch.tv/api/vods/%d/access_token?client_id=%s", vodID, clientID)
+func getAuthToken(vodID int, authToken string) (AuthTokenResponse, error) {
+	log.Printf("[getAuthToken] vodID=%d\n", vodID)
+	var atr AuthTokenResponse
+	url := fmt.Sprintf("https://api.twitch.tv/api/vods/%d/access_token?oauth_token=%s", vodID, authToken)
 	respData, err := readURL(url)
 	if err != nil {
 		return atr, err
@@ -248,7 +251,8 @@ func getAccessToken(vodID int, clientID string) (AccessTokenResponse, error) {
 	return atr, nil
 }
 
-func getStreamOptions(vodID int, atr AccessTokenResponse) (map[string]string, error) {
+func getStreamOptions(vodID int, atr AuthTokenResponse) (map[string]string, error) {
+	log.Printf("[getAuthToken] vodID=%d, atr=%+v\n", vodID, atr)
 	var ql = make(map[string]string)
 
 	url := fmt.Sprintf("http://usher.twitch.tv/vod/%d?nauthsig=%s&nauth=%s&allow_source=true", vodID, atr.Sig, atr.Token)
@@ -506,6 +510,7 @@ func secondsToTimeMask(s int) string {
 }
 
 func loadConfig(f string) (Config, error) {
+	log.Printf("loading config file <%s>\n", f)
 	var config Config
 
 	configData, err := ioutil.ReadFile(f)
@@ -524,6 +529,9 @@ func loadConfig(f string) (Config, error) {
 func buildConfigFromFlags() (Config, error) {
 	var config Config
 
+	if *authToken != "" {
+		config.AuthToken = *authToken
+	}
 	if *clientID != "" {
 		config.ClientID = *clientID
 	}

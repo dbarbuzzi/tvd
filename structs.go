@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 
 // Config represents a config object containing everything needed to download a VOD
 type Config struct {
+	AuthToken    string
 	ClientID     string
 	Quality      string
 	StartTime    string
@@ -25,15 +27,19 @@ type Config struct {
 	Workers      int
 }
 
-// WithoutClientID returns a copy of the struct with the ClientID field censored (e.g. for logging)
-func (c Config) WithoutClientID() Config {
+// Privatize returns a copy of the struct with the ClientID field censored (e.g. for logging)
+func (c Config) Privatize() Config {
 	c2 := c
+	c2.AuthToken = "********"
 	c2.ClientID = "********"
 	return c2
 }
 
 // Update replaces any config values in the base object with those present in the passed argument
 func (c *Config) Update(c2 Config) {
+	if c2.AuthToken != "" {
+		c.AuthToken = c2.AuthToken
+	}
 	if c2.ClientID != "" {
 		c.ClientID = c2.ClientID
 	}
@@ -68,6 +74,9 @@ func (c *Config) Update(c2 Config) {
 //
 // Currently, "OutputFolder" is not validated (needs logic to support Windows paths)
 func (c Config) Validate() error {
+	if len(c.AuthToken) == 0 {
+		return fmt.Errorf("error: AuthToken missing")
+	}
 	if len(c.ClientID) == 0 {
 		return fmt.Errorf("error: ClientID missing")
 	}
@@ -97,7 +106,7 @@ func (c Config) Validate() error {
 		return fmt.Errorf("error: Quality must be 'best', 'chunked', or in format '%s'; got '%s'", qualityPattern, c.Quality)
 	}
 
-	if !isValidFilename(c.FilePrefix) {
+	if c.FilePrefix != "" && !isValidFilename(c.FilePrefix) {
 		return fmt.Errorf("error: FilePrefix contains invalid characters; got '%s'", c.FilePrefix)
 	}
 
@@ -144,12 +153,14 @@ func (c *Config) ResolveEndTime() error {
 }
 
 func isValidFilename(fn string) bool {
+	log.Printf("[isValidFilename] validating: %s\n", fn)
 	if runtime.GOOS != "windows" {
 		return true
 	}
 
 	// source: https://msdn.microsoft.com/en-us/library/aa365247
 	// first, check for bad characters
+	log.Println("[isValidFilename] checking for bad characters")
 	badChars := []string{"<", ">", ":", "\"", "/", "\\", "|", "?", "*"}
 	for _, badChar := range badChars {
 		if strings.Contains(fn, badChar) {
@@ -157,6 +168,7 @@ func isValidFilename(fn string) bool {
 		}
 	}
 	// next, check for bad names
+	log.Println("[isValidFilename] checking for bad names")
 	badNames := []string{
 		"CON", "PRN", "AUX", "NUL",
 		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
@@ -168,6 +180,7 @@ func isValidFilename(fn string) bool {
 		}
 	}
 	// finally, make sure it doesn't end in " " or "."
+	log.Println("[isValidFilename] checking final character")
 	if string(fn[len(fn)-1]) == " " || string(fn[len(fn)-1]) == "." {
 		return false
 	}
@@ -175,8 +188,8 @@ func isValidFilename(fn string) bool {
 	return true
 }
 
-// AccessTokenResponse represents the (happy) JSON response to a token request call
-type AccessTokenResponse struct {
+// AuthTokenResponse represents the (happy) JSON response to a token request call
+type AuthTokenResponse struct {
 	Sig   string `json:"sig"`
 	Token string `json:"token"`
 }
