@@ -349,7 +349,7 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 
 	// Spin up workers
 	log.Printf("spinning up %d workers", workers)
-	for w := 1; w < workers; w++ {
+	for w := 1; w <= workers; w++ {
 		go downloadWorker(w, jobs, results)
 	}
 
