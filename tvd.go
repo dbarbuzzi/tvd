@@ -30,7 +30,9 @@ var (
 	// ClientID is provided by the Twitch API when registering an application
 	ClientID string
 	// Version is the build/release version
-	Version = "dev"
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 
 	DefaultConfig = Config{
 		AuthToken: "",
@@ -68,7 +70,7 @@ var (
 func main() {
 	// parse command-line input
 	kingpin.CommandLine.HelpFlag.Short('h')
-	kingpin.Version(Version)
+	kingpin.Version(fmt.Sprintf("%s (commit %s; built %s)", version, commit, date))
 	kingpin.Parse()
 
 	// log to file if one is specified, otherwise write to nowhere

@@ -6,47 +6,42 @@ release:
   github:
     owner: dbarbuzzi
     name: tvd
-archive:
-  replacements:
-    darwin: macOS
-    linux: Linux
-    windows: Windows
-    386: 32bit
-    amd64: 64bit
-  format_overrides:
-    - goos: windows
-      format: zip
+archives:
+  -
+    replacements:
+      darwin: macOS
+    format_overrides:
+      - goos: windows
+        format: zip
 checksum:
-  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
-snapshot:
-  name_template: "{{ .Tag }}-next"
+  name_template: '{{.ProjectName}}_{{.Version}}_checksums.txt'
 build:
   binary: tvd
-  ldflags: "-s -w -X main.Version={{ .Version }} -X main.ClientID={{ .Env.TVD_CLIENT_ID }}"
+  ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.ClientID={{.Env.TVD_CLIENT_ID}}
   goos:
     - darwin
     - linux
     - windows
   goarch:
     - amd64
-    - 386
   env:
     - CGO_ENABLED=0
-brew:
-  name: tvd
-  github:
-    owner: dbarbuzzi
-    name: homebrew-tap
-  commit_author:
-    name: dbarbuzzi
-    email: dbarbuzzi@gmail.com
-  folder: Formula
-  homepage: "https://github.com/dbarbuzzi/tvd"
-  description: "Download Twitch VODs"
-  test: |
-    system "#{bin}/tvd --version"
-  install: |
-    bin.install "tvd"
+brews:
+  -
+    name: tvd
+    tap:
+      owner: dbarbuzzi
+      name: homebrew-tap
+    commit_author:
+      name: dbarbuzzi
+      email: dbarbuzzi@gmail.com
+    folder: Formula
+    homepage: "https://github.com/dbarbuzzi/tvd"
+    description: "Download Twitch VODs"
+    test: |
+      system "#{bin}/tvd --version"
+    install: |
+      bin.install "tvd"
 scoop:
   bucket:
     owner: dbarbuzzi
