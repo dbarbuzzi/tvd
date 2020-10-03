@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  snapshot:
+    desc: Build a snapshot release
+    cmds:
+      - goreleaser --rm-dist --snapshot
+
+  release:
+    desc: Build a release without publishing
+    cmds:
+      - goreleaser --rm-dist --skip-publish
+
+  publish:
+    desc: Build and publish a release
+    cmds:
+      - goreleaser --rm-dist
