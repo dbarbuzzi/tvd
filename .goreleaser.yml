@@ -10,9 +10,6 @@ archives:
   -
     replacements:
       darwin: macOS
-      linux: Linux
-      windows: Windows
-      amd64: 64bit
     format_overrides:
       - goos: windows
         format: zip
