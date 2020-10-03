@@ -12,7 +12,6 @@ archives:
       darwin: macOS
       linux: Linux
       windows: Windows
-      386: 32bit
       amd64: 64bit
     format_overrides:
       - goos: windows
@@ -30,7 +29,6 @@ build:
     - windows
   goarch:
     - amd64
-    - 386
   env:
     - CGO_ENABLED=0
 brews:
