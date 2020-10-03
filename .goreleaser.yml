@@ -22,7 +22,7 @@ snapshot:
   name_template: "{{ .Tag }}-next"
 build:
   binary: tvd
-  ldflags: "-s -w -X main.Version={{ .Version }} -X main.ClientID={{ .Env.TVD_CLIENT_ID }}"
+  ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.ClientID={{.Env.TVD_CLIENT_ID}}
   goos:
     - darwin
     - linux
