@@ -222,7 +222,7 @@ func DownloadVOD(cfg Config) error {
 		return err
 	}
 
-	fmt.Println("Combining chunks")
+	fmt.Printf("Combining chunks to %s\n", outFile)
 	err = combineChunks(chunks, outFile)
 	if err != nil {
 		return err
