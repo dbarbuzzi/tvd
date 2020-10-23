@@ -31,8 +31,8 @@ var (
 	ClientID string
 	// Version is the build/release version
 	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	commit  = "n/a"
+	date    = "n/a"
 
 	DefaultConfig = Config{
 		AuthToken: "",
