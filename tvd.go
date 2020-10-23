@@ -223,7 +223,7 @@ func DownloadVOD(cfg Config) error {
 	}
 
 	fmt.Printf("Combining chunks to %s\n", outFile)
-	err = combineChunks(chunks, outFile)
+	err = combineChunks(chunks, tempDir, outFile)
 	if err != nil {
 		return err
 	}
@@ -452,30 +452,53 @@ func buildOutFilePath(vodID int, startAt int, dur int, prefix string, folder str
 	return filename, nil
 }
 
-func combineChunks(chunks []Chunk, outfile string) error {
+func min(a, b int) int {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
+func segmentChunks(chunks []Chunk) [][]Chunk {
+	segments := [][]Chunk{}
+	segmentSize := 100
+
+	for i := 0; i < len(segments); i += segmentSize {
+		segment := chunks[i:min(i+segmentSize, len(chunks))]
+		segments = append(segments, segment)
+	}
+
+	return segments
+}
+
+func combineChunks(chunks []Chunk, tempDir, outfile string) error {
 	ffmpeg := "ffmpeg"
 	if runtime.GOOS == "windows" {
 		ffmpeg += ".exe"
 	}
-	log.Printf("ffmpeg command: %s\n", ffmpeg)
+	log.Printf("ffmpeg binary name: %s\n", ffmpeg)
 
-	concat := "concat:"
-	for _, c := range chunks {
-		concat += c.Path + "|"
+	log.Println("concatenating chunks in segements of 100")
+	workingFile := filepath.Join(tempDir, "working-vid")
+	segments := segmentChunks(chunks)
+	for _, segment := range segments {
+		concat := "concat:"
+		for _, c := range segment {
+			concat += c.Path + "|"
+		}
+		concat = string(concat[0 : len(concat)-1])
+		args := []string{"-i", concat, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-fflags", "+genpts", workingFile}
+		cmd := exec.Command(ffmpeg, args...)
+		var errbuf bytes.Buffer
+		cmd.Stderr = &errbuf
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf(errbuf.String())
+		}
 	}
-	concat = string(concat[0 : len(concat)-1])
 
-	args := []string{"-i", concat, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-fflags", "+genpts", outfile}
-	log.Printf("ffmpeg args:\n%+v\n", args)
-	cmd := exec.Command(ffmpeg, args...)
-	var errbuf bytes.Buffer
-	cmd.Stderr = &errbuf
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf(errbuf.String())
-	}
-
-	return nil
+	log.Printf("moving %s to %s\n", workingFile, outfile)
+	return os.Rename(workingFile, outfile)
 }
 
 func timeInputToSeconds(t string) (int, error) {
