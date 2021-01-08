@@ -3,7 +3,6 @@ package main
 // Based on https://github.com/ArneVogel/concat
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,17 +11,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/pkg/errors"
+	"github.com/cheggaaa/pb/v3"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/cheggaaa/pb.v1"
 )
 
 // vars intended to be populated via ldflags during build
@@ -31,8 +27,8 @@ var (
 	ClientID string
 	// Version is the build/release version
 	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	commit  = "n/a"
+	date    = "n/a"
 
 	DefaultConfig = Config{
 		AuthToken: "",
@@ -62,9 +58,9 @@ var (
 	endTime   = kingpin.Flag("end", "End time for saved file (e.g. '0 30 0' to end at 30 minute mark)").Short('e').String()
 	length    = kingpin.Flag("length", "Length from start time, overrides end time (e.g. '0 15 0' for 15 minutes from start time)").Short('l').String()
 
-	prefix  = kingpin.Flag("prefix", "Prefix for the output filename").Short('p').String()
-	folder  = kingpin.Flag("folder", "Target folder for saved file (default: current dir)").Short('f').String()
-	outFile = kingpin.Flag("output", "NOT YET IMPLEMENTED").Short('o').String()
+	prefix = kingpin.Flag("prefix", "Prefix for the output filename").Short('p').String()
+	folder = kingpin.Flag("folder", "Target folder for saved file (default: current dir)").Short('f').String()
+	// outFile = kingpin.Flag("output", "NOT YET IMPLEMENTED").Short('o').String()
 )
 
 func main() {
@@ -222,7 +218,7 @@ func DownloadVOD(cfg Config) error {
 		return err
 	}
 
-	fmt.Println("Combining chunks")
+	fmt.Printf("Combining chunks to %s\n", outFile)
 	err = combineChunks(chunks, outFile)
 	if err != nil {
 		return err
@@ -453,27 +449,27 @@ func buildOutFilePath(vodID int, startAt int, dur int, prefix string, folder str
 }
 
 func combineChunks(chunks []Chunk, outfile string) error {
-	ffmpeg := "ffmpeg"
-	if runtime.GOOS == "windows" {
-		ffmpeg += ".exe"
-	}
-	log.Printf("ffmpeg command: %s\n", ffmpeg)
-
-	concat := "concat:"
-	for _, c := range chunks {
-		concat += c.Path + "|"
-	}
-	concat = string(concat[0 : len(concat)-1])
-
-	args := []string{"-i", concat, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-fflags", "+genpts", outfile}
-	log.Printf("ffmpeg args:\n%+v\n", args)
-	cmd := exec.Command(ffmpeg, args...)
-	var errbuf bytes.Buffer
-	cmd.Stderr = &errbuf
-	err := cmd.Run()
+	of, err := os.Create(outfile)
 	if err != nil {
-		return fmt.Errorf(errbuf.String())
+		return err
 	}
+	defer of.Close()
+
+	bar := pb.StartNew(len(chunks))
+	for _, c := range chunks {
+		cf, err := os.Open(c.Path)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(of, cf)
+		cf.Close()
+		if err != nil {
+			return err
+		}
+		bar.Increment()
+	}
+	bar.Finish()
 
 	return nil
 }
@@ -509,60 +505,6 @@ func secondsToTimeMask(s int) string {
 	res := fmt.Sprintf("%02dh%02dm%02ds", hours, minutes, seconds)
 	log.Printf("masked %d seconds as '%s'\n", s, res)
 	return res
-}
-
-func loadConfig(f string) (Config, error) {
-	log.Printf("loading config file <%s>\n", f)
-	var config Config
-
-	configData, err := ioutil.ReadFile(f)
-	if err != nil {
-		return config, errors.Wrap(err, "failed to load config file")
-	}
-
-	err = toml.Unmarshal(configData, &config)
-	if err != nil {
-		return config, errors.Wrap(err, "failed to parse config file")
-	}
-
-	return config, nil
-}
-
-func buildConfigFromFlags() (Config, error) {
-	var config Config
-
-	if *authToken != "" {
-		config.AuthToken = *authToken
-	}
-	if *clientID != "" {
-		config.ClientID = *clientID
-	}
-	if *quality != "" {
-		config.Quality = *quality
-	}
-	if *startTime != "" {
-		config.StartTime = *startTime
-	}
-	if *endTime != "" {
-		config.EndTime = *endTime
-	}
-	if *length != "" {
-		config.Length = *length
-	}
-	if *prefix != "" {
-		config.FilePrefix = *prefix
-	}
-	if *folder != "" {
-		config.OutputFolder = *folder
-	}
-	if *workers != 0 {
-		config.Workers = *workers
-	}
-	if *vodID != 0 {
-		config.VodID = *vodID
-	}
-
-	return config, nil
 }
 
 func readURL(url string) ([]byte, error) {
