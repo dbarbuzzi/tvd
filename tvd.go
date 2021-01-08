@@ -3,7 +3,6 @@ package main
 // Based on https://github.com/ArneVogel/concat
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,10 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -452,27 +449,27 @@ func buildOutFilePath(vodID int, startAt int, dur int, prefix string, folder str
 }
 
 func combineChunks(chunks []Chunk, outfile string) error {
-	ffmpeg := "ffmpeg"
-	if runtime.GOOS == "windows" {
-		ffmpeg += ".exe"
-	}
-	log.Printf("ffmpeg command: %s\n", ffmpeg)
-
-	concat := "concat:"
-	for _, c := range chunks {
-		concat += c.Path + "|"
-	}
-	concat = string(concat[0 : len(concat)-1])
-
-	args := []string{"-i", concat, "-c", "copy", "-bsf:a", "aac_adtstoasc", "-fflags", "+genpts", outfile}
-	log.Printf("ffmpeg args:\n%+v\n", args)
-	cmd := exec.Command(ffmpeg, args...)
-	var errbuf bytes.Buffer
-	cmd.Stderr = &errbuf
-	err := cmd.Run()
+	of, err := os.Create(outfile)
 	if err != nil {
-		return fmt.Errorf(errbuf.String())
+		return err
 	}
+	defer of.Close()
+
+	bar := pb.StartNew(len(chunks))
+	for _, c := range chunks {
+		cf, err := os.Open(c.Path)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(of, cf)
+		cf.Close()
+		if err != nil {
+			return err
+		}
+		bar.Increment()
+	}
+	bar.Finish()
 
 	return nil
 }
