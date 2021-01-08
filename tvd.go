@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/cheggaaa/pb/v3"
+	"github.com/schollz/progressbar/v3"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -364,10 +364,9 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 	}
 	close(jobs)
 
-	bar := pb.StartNew(len(chunks))
-
 	// Wait for results to come in
 	log.Printf("waiting for results from workers")
+	bar := progressbar.Default(int64(len(chunks)))
 	for r := 0; r < len(chunks); r++ {
 		res := <-results
 		// below error-catching is untested... cross your fingers
@@ -375,9 +374,15 @@ func downloadChunks(chunks []Chunk, vodID, workers int) ([]Chunk, string, error)
 			close(results)
 			return nil, "", fmt.Errorf("error: a worker returned an error: %s", res)
 		}
-		bar.Increment()
+		err := bar.Add(1)
+		if err != nil {
+			return nil, "", fmt.Errorf("error: failed to increment progress bar: %w", err)
+		}
 	}
-	bar.Finish()
+	err = bar.Finish()
+	if err != nil {
+		return nil, "", fmt.Errorf("error: failed to finalize progress bar: %w", err)
+	}
 
 	return chunks, tempDir, nil
 }
@@ -455,7 +460,7 @@ func combineChunks(chunks []Chunk, outfile string) error {
 	}
 	defer of.Close()
 
-	bar := pb.StartNew(len(chunks))
+	bar := progressbar.Default(int64(len(chunks)))
 	for _, c := range chunks {
 		cf, err := os.Open(c.Path)
 		if err != nil {
@@ -467,9 +472,15 @@ func combineChunks(chunks []Chunk, outfile string) error {
 		if err != nil {
 			return err
 		}
-		bar.Increment()
+		err = bar.Add(1)
+		if err != nil {
+			return fmt.Errorf("error: failed to increment progress bar: %w", err)
+		}
 	}
-	bar.Finish()
+	err = bar.Finish()
+	if err != nil {
+		return fmt.Errorf("error: failed to increment progress bar: %w", err)
+	}
 
 	return nil
 }
