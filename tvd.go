@@ -61,9 +61,9 @@ var (
 	endTime   = kingpin.Flag("end", "End time for saved file (e.g. '0 30 0' to end at 30 minute mark)").Short('e').String()
 	length    = kingpin.Flag("length", "Length from start time, overrides end time (e.g. '0 15 0' for 15 minutes from start time)").Short('l').String()
 
-	prefix  = kingpin.Flag("prefix", "Prefix for the output filename").Short('p').String()
-	folder  = kingpin.Flag("folder", "Target folder for saved file (default: current dir)").Short('f').String()
-	outFile = kingpin.Flag("output", "NOT YET IMPLEMENTED").Short('o').String()
+	prefix = kingpin.Flag("prefix", "Prefix for the output filename").Short('p').String()
+	folder = kingpin.Flag("folder", "Target folder for saved file (default: current dir)").Short('f').String()
+	// outFile = kingpin.Flag("output", "NOT YET IMPLEMENTED").Short('o').String()
 )
 
 func main() {
