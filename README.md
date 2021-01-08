@@ -4,7 +4,6 @@ tvd (**T**witch **V**OD **D**ownloader) is a command-line tool to download VODs 
 
 ## Prerequisites
 
-* You must have [ffmpeg](https://www.ffmpeg.org/) available on your path regardless of platform.
 * If building from source, you must register a new app on the Twitch Dev site to get your own client ID
   * Provided releases have an embedded client ID
 * You must have an active auth token from an account sign-in
