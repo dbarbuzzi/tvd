@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/cheggaaa/pb.v1"
 )
@@ -509,60 +508,6 @@ func secondsToTimeMask(s int) string {
 	res := fmt.Sprintf("%02dh%02dm%02ds", hours, minutes, seconds)
 	log.Printf("masked %d seconds as '%s'\n", s, res)
 	return res
-}
-
-func loadConfig(f string) (Config, error) {
-	log.Printf("loading config file <%s>\n", f)
-	var config Config
-
-	configData, err := ioutil.ReadFile(f)
-	if err != nil {
-		return config, errors.Wrap(err, "failed to load config file")
-	}
-
-	err = toml.Unmarshal(configData, &config)
-	if err != nil {
-		return config, errors.Wrap(err, "failed to parse config file")
-	}
-
-	return config, nil
-}
-
-func buildConfigFromFlags() (Config, error) {
-	var config Config
-
-	if *authToken != "" {
-		config.AuthToken = *authToken
-	}
-	if *clientID != "" {
-		config.ClientID = *clientID
-	}
-	if *quality != "" {
-		config.Quality = *quality
-	}
-	if *startTime != "" {
-		config.StartTime = *startTime
-	}
-	if *endTime != "" {
-		config.EndTime = *endTime
-	}
-	if *length != "" {
-		config.Length = *length
-	}
-	if *prefix != "" {
-		config.FilePrefix = *prefix
-	}
-	if *folder != "" {
-		config.OutputFolder = *folder
-	}
-	if *workers != 0 {
-		config.Workers = *workers
-	}
-	if *vodID != 0 {
-		config.VodID = *vodID
-	}
-
-	return config, nil
 }
 
 func readURL(url string) ([]byte, error) {
