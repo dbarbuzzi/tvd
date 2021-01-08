@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/cheggaaa/pb/v3"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/cheggaaa/pb.v1"
 )
 
 // vars intended to be populated via ldflags during build
