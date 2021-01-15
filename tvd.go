@@ -205,9 +205,10 @@ func DownloadVOD(cfg Config) error {
 		return err
 	}
 	defer func() {
+		fmt.Println("Cleaning up temp files")
 		err = os.RemoveAll(tempDir)
 		if err != nil {
-			fmt.Printf("Failed to remove dir <%s>\n", tempDir)
+			fmt.Printf("Failed to remove tempdir <%s>\n", tempDir)
 			log.Fatalln(err)
 		}
 	}()
