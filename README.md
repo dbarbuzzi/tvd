@@ -6,8 +6,6 @@ tvd (**T**witch **V**OD **D**ownloader) is a command-line tool to download VODs 
 
 * If building from source, you must have a client ID with appropriate privileges to query the GQL API for VODs
   * Provided releases have an embedded client ID
-* You must have an active auth token from an account sign-in
-  * In a browser, sign into your account and get the value of the `auth-token` cookie
 
 ## Download
 
@@ -43,7 +41,6 @@ Using a config file is alternative to command-line arguments. It can be used in 
 
 The accepted values are:
 
-* `AuthToken` - your login session’s auth token (stored in `auth-token` cookies)
 * `ClientID` - your Twitch app’s client ID
 * `Quality` (optional) - desired quality (e.g. “720p60”, “480p30”); can use “best” for best available (default: "best")
 * `StartTime` – start time in the format "HOURS MINUTES SECONDS" (e.g. "1 24 35" is 1h24m35s)
@@ -59,7 +56,6 @@ The accepted values are:
 
 All options supported above are also supported through the command-line under the following flags:
 
-* `auth` => `AuthToken`
 * `client` => `ClientID`
 * `quality` => `Quality`
 * `start` => `StartTime`

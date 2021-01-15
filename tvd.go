@@ -32,7 +32,6 @@ var (
 	date    = "n/a"
 
 	DefaultConfig = Config{
-		AuthToken: "",
 		ClientID:  ClientID,
 		Workers:   4,
 		StartTime: "0 0 0",
@@ -46,7 +45,6 @@ var (
 
 // command-line args/flags
 var (
-	authToken  = kingpin.Flag("auth", "Account session access token from browser sign-in session").Short('T').String()
 	clientID   = kingpin.Flag("client", "Twitch app Client ID").Short('C').String()
 	workers    = kingpin.Flag("workers", "Max number of concurrent downloads (default: 4)").Short('w').Int()
 	configFile = kingpin.Flag("config", "Path to config file (default: $HOME/.config/tvd/config.toml)").Short('c').String()
