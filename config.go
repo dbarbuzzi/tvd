@@ -12,7 +12,6 @@ import (
 
 // Config represents a config object containing everything needed to download a VOD
 type Config struct {
-	AuthToken    string
 	ClientID     string
 	Quality      string
 	StartTime    string
@@ -29,16 +28,12 @@ type Config struct {
 // Privatize returns a copy of the struct with the ClientID field censored (e.g. for logging)
 func (c Config) Privatize() Config {
 	c2 := c
-	c2.AuthToken = "********"
 	c2.ClientID = "********"
 	return c2
 }
 
 // Update replaces any config values in the base object with those present in the passed argument
 func (c *Config) Update(c2 Config) {
-	if c2.AuthToken != "" {
-		c.AuthToken = c2.AuthToken
-	}
 	if c2.ClientID != "" {
 		c.ClientID = c2.ClientID
 	}
@@ -73,9 +68,6 @@ func (c *Config) Update(c2 Config) {
 //
 // Currently, "OutputFolder" is not validated (needs logic to support Windows paths)
 func (c Config) Validate() error {
-	if len(c.AuthToken) == 0 {
-		return fmt.Errorf("error: AuthToken missing")
-	}
 	if len(c.ClientID) == 0 {
 		return fmt.Errorf("error: ClientID missing")
 	}
@@ -171,9 +163,6 @@ func loadConfig(f string) (Config, error) {
 func buildConfigFromFlags() (Config, error) {
 	var config Config
 
-	if *authToken != "" {
-		config.AuthToken = *authToken
-	}
 	if *clientID != "" {
 		config.ClientID = *clientID
 	}

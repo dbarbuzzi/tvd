@@ -3,6 +3,7 @@ package main
 // Based on https://github.com/ArneVogel/concat
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,11 +13,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/grafov/m3u8"
 	"github.com/schollz/progressbar/v3"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -31,7 +32,6 @@ var (
 	date    = "n/a"
 
 	DefaultConfig = Config{
-		AuthToken: "",
 		ClientID:  ClientID,
 		Workers:   4,
 		StartTime: "0 0 0",
@@ -45,7 +45,6 @@ var (
 
 // command-line args/flags
 var (
-	authToken  = kingpin.Flag("auth", "Account session access token from browser sign-in session").Short('T').String()
 	clientID   = kingpin.Flag("client", "Twitch app Client ID").Short('C').String()
 	workers    = kingpin.Flag("workers", "Max number of concurrent downloads (default: 4)").Short('w').Int()
 	configFile = kingpin.Flag("config", "Path to config file (default: $HOME/.config/tvd/config.toml)").Short('c').String()
@@ -135,6 +134,7 @@ func main() {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
+	log.Printf("final config: %+v\n", config.Privatize())
 
 	// go get it!
 	err = DownloadVOD(config)
@@ -165,13 +165,13 @@ func createDefaultConfigFile() error {
 // DownloadVOD downloads a VOD based on the various info passed in the config
 func DownloadVOD(cfg Config) error {
 	fmt.Println("Fetching access token")
-	atr, err := getAuthToken(cfg.VodID, cfg.AuthToken)
+	ar, err := getAccessData(cfg.VodID, cfg.ClientID)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("Fetching VOD stream options")
-	ql, err := getStreamOptions(cfg.VodID, atr)
+	ql, err := getStreamOptions(cfg.VodID, ar)
 	if err != nil {
 		return err
 	}
@@ -205,9 +205,10 @@ func DownloadVOD(cfg Config) error {
 		return err
 	}
 	defer func() {
+		fmt.Println("Cleaning up temp files")
 		err = os.RemoveAll(tempDir)
 		if err != nil {
-			fmt.Printf("Failed to remove dir <%s>\n", tempDir)
+			fmt.Printf("Failed to remove tempdir <%s>\n", tempDir)
 			log.Fatalln(err)
 		}
 	}()
@@ -227,54 +228,97 @@ func DownloadVOD(cfg Config) error {
 	return nil
 }
 
-func getAuthToken(vodID int, authToken string) (AuthTokenResponse, error) {
+func getAccessData(vodID int, clientID string) (AuthGQLResponse, error) {
 	log.Printf("[getAuthToken] vodID=%d\n", vodID)
-	var atr AuthTokenResponse
-	url := fmt.Sprintf("https://api.twitch.tv/api/vods/%d/access_token?oauth_token=%s", vodID, authToken)
-	respData, err := readURL(url)
+	var ar AuthGQLResponse
+
+	ap, err := generateAuthPayload(strconv.Itoa(vodID))
 	if err != nil {
-		return atr, err
+		return ar, err
 	}
 
-	err = json.Unmarshal(respData, &atr)
+	url := "https://gql.twitch.tv/gql"
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(ap))
 	if err != nil {
-		return atr, err
+		return ar, err
 	}
-	if len(atr.Sig) == 0 || len(atr.Token) == 0 {
-		return atr, fmt.Errorf("error: sig and/or token were empty: %+v", atr)
+	req.Header.Set("Client-ID", clientID)
+	req.Header.Set("Content-Type", "text/plain; charset=UTF-8")
+
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ar, err
+	}
+	defer func() {
+		err = rsp.Body.Close()
+		if err != nil {
+			fmt.Printf("error closing URL body for <%s>: %s", url, err.Error())
+			log.Println(err)
+		}
+	}()
+
+	rspData, err := ioutil.ReadAll(rsp.Body)
+	if err != nil {
+		return ar, err
 	}
 
-	log.Printf("access token: %+v\n", atr)
+	err = json.Unmarshal(rspData, &ar)
+	if err != nil {
+		return ar, err
+	}
+	if len(ar.Data.VideoPlaybackAccessToken.Signature) == 0 || len(ar.Data.VideoPlaybackAccessToken.Value) == 0 {
+		log.Printf("response: %s\n", rspData)
+		return ar, fmt.Errorf("error: sig and/or token were empty; response body: %+v", ar)
+	}
 
-	return atr, nil
+	log.Printf("access token: %+v\n", ar)
+
+	return ar, nil
 }
 
-func getStreamOptions(vodID int, atr AuthTokenResponse) (map[string]string, error) {
-	log.Printf("[getAuthToken] vodID=%d, atr=%+v\n", vodID, atr)
+func getStreamOptions(vodID int, ar AuthGQLResponse) (map[string]string, error) {
+	log.Printf("[getStreamOptions] vodID=%d, ar=%+v\n", vodID, ar)
 	var ql = make(map[string]string)
 
-	url := fmt.Sprintf("http://usher.twitch.tv/vod/%d?nauthsig=%s&nauth=%s&allow_source=true", vodID, atr.Sig, atr.Token)
-	respData, err := readURL(url)
+	url := fmt.Sprintf(
+		"https://usher.ttvnw.net/vod/%d.m3u8?allow_source=true&sig=%s&token=%s",
+		vodID,
+		ar.Data.VideoPlaybackAccessToken.Signature,
+		ar.Data.VideoPlaybackAccessToken.Value,
+	)
+	rsp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		err = rsp.Body.Close()
+		if err != nil {
+			fmt.Printf("error closing URL body for <%s>: %s", url, err.Error())
+			log.Println(err)
+		}
+	}()
 
-	re := regexp.MustCompile(`BANDWIDTH=(\d+),.*?VIDEO="(.*?)"\n(.*?)\n`)
-	matches := re.FindAllStringSubmatch(string(respData), -1)
-	if len(matches) == 0 {
-		log.Printf("response for m3u:\n%s\n", respData)
-		return nil, fmt.Errorf("error: no matches found")
+	p, listType, err := m3u8.DecodeFrom(rsp.Body, true)
+	if err != nil {
+		log.Printf("failed to decode m3u8: %s\n", err.Error())
+		return nil, err
 	}
 
-	bestBandwidth := 0
-	for _, match := range matches {
-		ql[match[2]] = match[3]
-		// "safe" to ignore error as regex only matches digits for this capture grouop
-		bandwidth, _ := strconv.Atoi(match[1])
-		if bandwidth > bestBandwidth {
-			bestBandwidth = bandwidth
-			ql["best"] = match[3]
+	switch listType {
+	case m3u8.MASTER:
+		masterPl := p.(*m3u8.MasterPlaylist)
+		var bestBandwidth uint32
+		for _, v := range masterPl.Variants {
+			ql[v.Resolution] = v.URI
+			if v.Bandwidth > bestBandwidth {
+				bestBandwidth = v.Bandwidth
+				ql["best"] = v.URI
+			}
+
 		}
+	default:
+		log.Println("m3u8 playlist was not the expected 'master' format")
+		return nil, fmt.Errorf("m3u8 playlist was not the expected 'master' format")
 	}
 
 	log.Printf("qualities options found: %+v\n", ql)
@@ -284,31 +328,46 @@ func getStreamOptions(vodID int, atr AuthTokenResponse) (map[string]string, erro
 
 func getChunks(streamURL string) ([]Chunk, int, error) {
 	var chunks []Chunk
+	var chunkDur int
 
-	respData, err := readURL(streamURL)
+	rsp, err := http.Get(streamURL)
 	if err != nil {
 		return nil, 0, err
 	}
+	defer func() {
+		err = rsp.Body.Close()
+		if err != nil {
+			fmt.Printf("error closing URL body for <%s>: %s", streamURL, err.Error())
+			log.Println(err)
+		}
+	}()
 
-	re := regexp.MustCompile(`#EXTINF:(\d+\.\d+),\n(.*?)\n`)
-	matches := re.FindAllStringSubmatch(string(respData), -1)
-
-	// "safe" to ignore because we already fetched it
-	baseURL, _ := url.Parse(streamURL)
-	for _, match := range matches {
-		// "safe" to ignore error due to regex capture group
-		length, _ := strconv.ParseFloat(match[1], 64)
-		// "safe" to ignore error ... due to capture group?
-		chunkURL, _ := url.Parse(match[2])
-		chunkURL = baseURL.ResolveReference(chunkURL)
-		chunks = append(chunks, Chunk{Name: match[2], Length: length, URL: chunkURL})
+	p, listType, err := m3u8.DecodeFrom(rsp.Body, true)
+	if err != nil {
+		log.Printf("failed to decode m3u8: %s\n", err.Error())
+		return nil, 0, err
 	}
-	log.Printf("found %d chunks", len(chunks))
 
-	re = regexp.MustCompile(`#EXT-X-TARGETDURATION:(\d+)\n`)
-	match := re.FindStringSubmatch(string(respData))
-	chunkDur, _ := strconv.Atoi(match[1])
-	log.Printf("target chunk duration: %d", chunkDur)
+	switch listType {
+	case m3u8.MEDIA:
+		mediaPl := p.(*m3u8.MediaPlaylist)
+
+		chunkDur = int(mediaPl.TargetDuration)
+		log.Printf("target chunk duration: %d", chunkDur)
+
+		// "safe" to ignore - previously fetched
+		baseURL, _ := url.Parse(streamURL)
+		for i := 0; i < int(mediaPl.Count()); i++ {
+			// "safe" to ignore - per format spec
+			s := mediaPl.Segments[i]
+			chunkPath, _ := url.Parse(s.URI)
+			chunkURL := baseURL.ResolveReference(chunkPath)
+			chunks = append(chunks, Chunk{Name: s.URI, Length: s.Duration, URL: chunkURL})
+		}
+	default:
+		log.Println("m3u8 playlist was not the expected 'media' format")
+		return nil, 0, fmt.Errorf("m3u8 playlist was not the expected 'media' format")
+	}
 
 	return chunks, chunkDur, nil
 }
@@ -516,26 +575,4 @@ func secondsToTimeMask(s int) string {
 	res := fmt.Sprintf("%02dh%02dm%02ds", hours, minutes, seconds)
 	log.Printf("masked %d seconds as '%s'\n", s, res)
 	return res
-}
-
-func readURL(url string) ([]byte, error) {
-	log.Printf("requesting URL: %s\n", url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err = resp.Body.Close()
-		if err != nil {
-			fmt.Printf("error closing URL body for <%s>: %s", url, err.Error())
-			log.Println(err)
-		}
-	}()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
 }
