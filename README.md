@@ -4,7 +4,7 @@ tvd (**T**witch **V**OD **D**ownloader) is a command-line tool to download VODs 
 
 ## Prerequisites
 
-* If building from source, you must register a new app on the Twitch Dev site to get your own client ID
+* If building from source, you must have a client ID with appropriate privileges to query the GQL API for VODs
   * Provided releases have an embedded client ID
 * You must have an active auth token from an account sign-in
   * In a browser, sign into your account and get the value of the `auth-token` cookie
