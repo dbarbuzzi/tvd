@@ -135,6 +135,7 @@ func main() {
 		fmt.Println(err)
 		log.Fatalln(err)
 	}
+	log.Printf("final config: %+v\n", config.Privatize())
 
 	// go get it!
 	err = DownloadVOD(config)
