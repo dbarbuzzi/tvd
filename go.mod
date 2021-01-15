@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v0.3.0
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
-	github.com/osrtss/rtss v0.0.0-20170322072109-b1617c76f6da
+	github.com/grafov/m3u8 v0.11.1
 	github.com/pkg/errors v0.8.0
 	github.com/schollz/progressbar/v3 v3.7.3
 	github.com/stretchr/testify v1.6.1 // indirect
