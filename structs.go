@@ -45,12 +45,6 @@ func isValidFilename(fn string) bool {
 	return true
 }
 
-// AuthTokenResponse represents the (happy) JSON response to a token request call
-type AuthTokenResponse struct {
-	Sig   string `json:"sig"`
-	Token string `json:"token"`
-}
-
 // Chunk represents a video chunk from the m3u
 type Chunk struct {
 	Name   string

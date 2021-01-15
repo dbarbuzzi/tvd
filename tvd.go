@@ -574,25 +574,3 @@ func secondsToTimeMask(s int) string {
 	log.Printf("masked %d seconds as '%s'\n", s, res)
 	return res
 }
-
-func readURL(url string) ([]byte, error) {
-	log.Printf("requesting URL: %s\n", url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err = resp.Body.Close()
-		if err != nil {
-			fmt.Printf("error closing URL body for <%s>: %s", url, err.Error())
-			log.Println(err)
-		}
-	}()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
-}
