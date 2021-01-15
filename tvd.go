@@ -268,7 +268,7 @@ func getAccessData(vodID int, clientID string) (AuthGQLResponse, error) {
 	}
 	if len(ar.Data.VideoPlaybackAccessToken.Signature) == 0 || len(ar.Data.VideoPlaybackAccessToken.Value) == 0 {
 		log.Printf("response: %s\n", rspData)
-		return ar, fmt.Errorf("error: sig and/or token were empty: %+v", ar)
+		return ar, fmt.Errorf("error: sig and/or token were empty; response body: %+v", ar)
 	}
 
 	log.Printf("access token: %+v\n", ar)
@@ -300,6 +300,7 @@ func getStreamOptions(vodID int, ar AuthGQLResponse) (map[string]string, error) 
 
 	p, listType, err := m3u8.DecodeFrom(rsp.Body, true)
 	if err != nil {
+		log.Printf("failed to decode m3u8: %s\n", err.Error())
 		return nil, err
 	}
 
@@ -316,6 +317,7 @@ func getStreamOptions(vodID int, ar AuthGQLResponse) (map[string]string, error) 
 
 		}
 	default:
+		log.Println("m3u8 playlist was not the expected 'master' format")
 		return nil, fmt.Errorf("m3u8 playlist was not the expected 'master' format")
 	}
 
@@ -342,6 +344,7 @@ func getChunks(streamURL string) ([]Chunk, int, error) {
 
 	p, listType, err := m3u8.DecodeFrom(rsp.Body, true)
 	if err != nil {
+		log.Printf("failed to decode m3u8: %s\n", err.Error())
 		return nil, 0, err
 	}
 
@@ -362,6 +365,7 @@ func getChunks(streamURL string) ([]Chunk, int, error) {
 			chunks = append(chunks, Chunk{Name: s.URI, Length: s.Duration, URL: chunkURL})
 		}
 	default:
+		log.Println("m3u8 playlist was not the expected 'media' format")
 		return nil, 0, fmt.Errorf("m3u8 playlist was not the expected 'media' format")
 	}
 
