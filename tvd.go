@@ -165,7 +165,7 @@ func createDefaultConfigFile() error {
 // DownloadVOD downloads a VOD based on the various info passed in the config
 func DownloadVOD(cfg Config) error {
 	fmt.Println("Fetching access token")
-	ar, err := getAuthToken(cfg.VodID, cfg.ClientID)
+	ar, err := getAccessData(cfg.VodID, cfg.ClientID)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func DownloadVOD(cfg Config) error {
 	return nil
 }
 
-func getAuthToken(vodID int, clientID string) (AuthGQLResponse, error) {
+func getAccessData(vodID int, clientID string) (AuthGQLResponse, error) {
 	log.Printf("[getAuthToken] vodID=%d\n", vodID)
 	var ar AuthGQLResponse
 
